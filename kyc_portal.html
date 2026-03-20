@@ -724,6 +724,22 @@
   }
   .send-reminder-btn:hover { background: #fef3c7; }
 
+  .committee-btn {
+    background: #fff1f0;
+    color: #b91c1c;
+    border: 1px solid #fca5a5;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .committee-btn:hover { background: #fee2e2; border-color: #f87171; }
+  .committee-flag { font-size: 10px; color: #b91c1c; font-weight: 700; margin-top: 2px; }
+
   @media (max-width: 900px) {
     .metrics-row { grid-template-columns: repeat(3, 1fr); }
     .detail-grid { grid-template-columns: 1fr 1fr; }
@@ -1431,7 +1447,7 @@
         </thead>
         <tbody>
           <tr onclick="toggleDetail('d1')" style="cursor:pointer">
-            <td><strong>Jan de Vries</strong><div style="font-size:11px;color:var(--text-3)">Natural person</div></td>
+            <td><strong>Jan de Vries</strong><div class="committee-flag">⚑ Committee required</div><div style="font-size:11px;color:var(--text-3)">Natural person</div></td>
             <td><span class="tag">Natural</span></td>
             <td>Real estate</td>
             <td><span class="badge badge-amber">Incomplete</span></td>
@@ -1447,6 +1463,7 @@
             <td><span class="badge badge-amber">2 sent</span></td>
             <td style="color:var(--text-3);font-size:12px">2 days ago</td>
             <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <button class="committee-btn" onclick="event.stopPropagation(); openCommitteeModal('Jan de Vries',currentUser?.email||'jan.devries@email.nl','natural','medium','Real estate transaction','Legal advice and representation in connection with the acquisition of residential real estate, including due diligence, purchase agreement review, and notarial coordination.')">⚑ Refer to committee</button>
               <button class="send-reminder-btn" onclick="event.stopPropagation(); sendReminderEmail(currentUser?.email||'jan.devries@email.nl','Jan de Vries')">Send reminder</button>
               <button class="eng-toggle" onclick="event.stopPropagation(); openEngModal('Jan de Vries',currentUser?.email||'jan.devries@email.nl','Real estate transaction')">&#9993; Send engagement letter</button>
             </td>
@@ -1551,7 +1568,7 @@
           </td></tr>
 
           <tr onclick="toggleDetail('d2')" style="cursor:pointer">
-            <td><strong>Acme Holding BV</strong><div style="font-size:11px;color:var(--text-3)">Legal entity</div></td>
+            <td><strong>Acme Holding BV</strong><div class="committee-flag">⚑ Committee required</div><div style="font-size:11px;color:var(--text-3)">Legal entity</div></td>
             <td><span class="tag">Entity</span></td>
             <td>M&amp;A</td>
             <td><span class="badge badge-red">High risk review</span></td>
@@ -1566,6 +1583,7 @@
             <td><span class="badge badge-red">3 sent</span></td>
             <td style="color:var(--text-3);font-size:12px">Today</td>
             <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <button class="committee-btn" onclick="event.stopPropagation(); openCommitteeModal('Acme Holding BV',currentUser?.email||'contact@acme.nl','entity','high','M&A transaction','Legal advice and representation in connection with a cross-border M&A transaction, including target due diligence, transaction structuring, share purchase agreement drafting, and regulatory filings.')">⚑ Refer to committee</button>
               <button class="send-reminder-btn" onclick="event.stopPropagation(); sendReminderEmail(currentUser?.email||'contact@acme.nl','Acme Holding BV')">Send reminder</button>
               <button class="eng-toggle" onclick="event.stopPropagation(); openEngModal('Acme Holding BV',currentUser?.email||'contact@acme.nl','M&A transaction')">&#9993; Send engagement letter</button>
             </td>
@@ -1667,7 +1685,7 @@
           </td></tr>
 
           <tr>
-            <td><strong>Sophie Martens</strong><div style="font-size:11px;color:var(--text-3)">Natural person</div></td>
+            <td><strong>Sophie Martens</strong><div class="committee-flag">⚑ Committee required</div><div style="font-size:11px;color:var(--text-3)">Natural person</div></td>
             <td><span class="tag">Natural</span></td>
             <td>Contract</td>
             <td><span class="badge badge-green">Approved</span></td>
@@ -1680,7 +1698,10 @@
             <td><div class="risk-light risk-low"><div class="risk-dot"></div>Low</div></td>
             <td><span class="badge badge-gray">0 sent</span></td>
             <td style="color:var(--text-3);font-size:12px">5 days ago</td>
-            <td><span style="font-size:12px;color:var(--green);font-weight:500">Complete</span></td>
+            <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <span style="font-size:12px;color:var(--green);font-weight:500">Complete</span>
+              <button class="committee-btn" onclick="event.stopPropagation(); openCommitteeModal('Sophie Martens',currentUser?.email||'sophie.martens@email.nl','natural','low','Contract review','Legal advice and representation in connection with contract review and negotiation.')">⚑ Refer to committee</button>
+            </td>
           </tr>
 
           <tr>
@@ -1711,6 +1732,49 @@
 </div>
 
 <!-- Engagement questionnaire modal -->
+<!-- ========== COMMITTEE REFERRAL MODAL ========== -->
+<div class="modal-overlay" id="committee-modal">
+  <div class="modal-box" style="max-width:640px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" style="color:#b91c1c;">⚑ Committee referral</div>
+        <div class="modal-sub" id="comm-modal-sub">Review the memo, edit if needed, then send to the committee</div>
+      </div>
+      <button class="modal-close" onclick="closeCommitteeModal()">✕</button>
+    </div>
+
+    <!-- Reason pills -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);margin-bottom:8px;">Reasons for referral</div>
+      <div id="comm-reasons" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+    </div>
+
+    <!-- Editable referral memo -->
+    <div class="modal-field">
+      <label class="modal-label">Referral memo <span style="font-weight:400;color:var(--text-3);text-transform:none;letter-spacing:0;">(editable — sent verbatim to the committee)</span></label>
+      <textarea id="comm-memo" rows="14"
+        style="width:100%;padding:14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:'Courier New',monospace;font-size:12px;line-height:1.75;color:var(--text);box-sizing:border-box;resize:vertical;background:#fafafa;"></textarea>
+    </div>
+
+    <!-- Committee email -->
+    <div class="modal-field" style="margin-top:14px;">
+      <label class="modal-label">Committee email address</label>
+      <input type="email" id="comm-email" value="committee@cleardue.legal"
+        style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;color:var(--text);box-sizing:border-box;">
+    </div>
+
+    <div id="comm-error" style="font-size:12px;color:var(--red);min-height:18px;margin-top:6px;"></div>
+    <div class="modal-actions">
+      <button class="btn-sm" onclick="closeCommitteeModal()">Cancel</button>
+      <button id="comm-send-btn" onclick="sendToCommittee()"
+        style="background:#b91c1c;color:white;border:none;border-radius:var(--radius);padding:9px 22px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background 0.15s;"
+        onmouseover="this.style.background='#991b1b'" onmouseout="this.style.background='#b91c1c'">
+        ⚑ Send to committee →
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ========== INVITE CLIENT MODAL ========== -->
 <div class="modal-overlay" id="invite-modal">
   <div class="modal-box" style="max-width:460px;">
@@ -2144,6 +2208,127 @@ async function sendClientInvite() {
     errEl.textContent = 'Network error — please try again.';
     btn.textContent = '✉ Send invite';
     btn.disabled = false;
+  }
+}
+
+/* ===== Committee referral ===== */
+let _committeeClient = {};
+
+function openCommitteeModal(name, email, clientType, risk, service, workDesc) {
+  _committeeClient = { name, email, clientType, risk, service, workDesc };
+
+  // Build reason cards
+  const reasons = [];
+  if (clientType === 'natural') {
+    reasons.push({
+      label: 'Natural person',
+      note:  'Mandatory committee approval required pursuant to the firm\'s Wwft compliance protocol (Art. 8 Wwft / FATF Recommendation 10). All natural-person clients must be reviewed by the committee prior to engagement.'
+    });
+  }
+  if (risk === 'high' || risk === 'high_risk_review') {
+    reasons.push({
+      label: 'High risk',
+      note:  'The client\'s risk assessment has been rated HIGH. Enhanced due diligence is required and committee sign-off is mandatory before any engagement letter may take effect.'
+    });
+  }
+  if (!reasons.length) {
+    reasons.push({ label: 'Risk flag', note: 'This client has been referred for committee review by the responsible partner.' });
+  }
+
+  document.getElementById('comm-reasons').innerHTML = reasons.map(r => `
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:#fff1f0;border:1px solid #fca5a5;border-radius:8px;flex:1;min-width:220px;max-width:100%;">
+      <span style="font-size:16px;flex-shrink:0;margin-top:1px;">⚑</span>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:#b91c1c;margin-bottom:3px;">${r.label}</div>
+        <div style="font-size:12px;color:#7f1d1d;line-height:1.55;">${r.note}</div>
+      </div>
+    </div>`).join('');
+
+  // Build pre-drafted memo
+  const today    = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const typeLabel = clientType === 'natural' ? 'Natural person' : 'Legal entity';
+  const riskLabel = { high: 'HIGH', medium: 'MEDIUM', low: 'LOW' }[risk] || risk?.toUpperCase() || 'MEDIUM';
+  const desc = workDesc || `Legal advice and representation in connection with ${service.toLowerCase()}.`;
+  const reasonLines = reasons.map(r => `  — ${r.label}: ${r.note}`).join('\n\n');
+  const sep = '─'.repeat(56);
+
+  document.getElementById('comm-memo').value =
+`COMMITTEE REFERRAL MEMORANDUM
+ClearDue Legal B.V. — Strictly confidential / Internal use only
+${sep}
+Date:          ${today}
+Referred by:   ${(typeof currentUser !== 'undefined' && currentUser?.email) || 'ClearDue Legal'}
+Client:        ${name}
+Client type:   ${typeLabel}
+Risk level:    ${riskLabel}
+Service:       ${service}
+${sep}
+REASONS FOR COMMITTEE REFERRAL
+
+${reasonLines}
+
+${sep}
+DESCRIPTION OF ENGAGEMENT
+
+${desc}
+
+${sep}
+COMMITTEE APPROVAL REQUIRED
+
+Work may not commence, and no engagement letter may take
+legal effect, until this referral has been reviewed and
+approved by a majority of the Compliance Committee in
+accordance with the firm's risk-based approach policy.
+
+${sep}
+Responsible partner: _________________________________
+
+Date approved:       _________________________________
+
+Committee signature: _________________________________`;
+
+  document.getElementById('comm-modal-sub').textContent = `${name} — ${typeLabel} · ${riskLabel} risk`;
+  document.getElementById('comm-error').textContent = '';
+  const btn = document.getElementById('comm-send-btn');
+  btn.textContent = '⚑ Send to committee →'; btn.disabled = false;
+  document.getElementById('committee-modal').classList.add('active');
+}
+
+function closeCommitteeModal() {
+  document.getElementById('committee-modal').classList.remove('active');
+}
+
+async function sendToCommittee() {
+  const committeeEmail = document.getElementById('comm-email').value.trim();
+  const memo           = document.getElementById('comm-memo').value.trim();
+  const errEl          = document.getElementById('comm-error');
+  const btn            = document.getElementById('comm-send-btn');
+  errEl.textContent = '';
+  if (!committeeEmail || !committeeEmail.includes('@')) { errEl.textContent = 'Please enter a valid committee email address.'; return; }
+  if (!memo)  { errEl.textContent = 'The referral memo cannot be empty.'; return; }
+  btn.textContent = 'Sending…'; btn.disabled = true;
+  try {
+    const res = await fetch('/api/send-committee', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to:          committeeEmail,
+        clientName:  _committeeClient.name,
+        memo,
+        referredBy:  (typeof currentUser !== 'undefined' && currentUser?.email) || 'ClearDue Legal',
+      }),
+    });
+    if (res.ok) {
+      closeCommitteeModal();
+      _toast('⚑ Committee referral sent for ' + _committeeClient.name);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      errEl.textContent = data.error || 'Failed to send referral — please try again.';
+      btn.textContent = '⚑ Send to committee →'; btn.disabled = false;
+    }
+  } catch(e) {
+    errEl.textContent = 'Network error — please try again.';
+    btn.textContent = '⚑ Send to committee →'; btn.disabled = false;
   }
 }
 
@@ -2589,9 +2774,17 @@ function renderDashboard(subs) {
     const email     = _esc(sub.email || '');
     const service   = _esc(sub.service || 'Legal services');
 
+    // Committee required for natural persons and high-risk clients
+    const needsCommittee = sub.clientType === 'natural' || sub.risk === 'high' || sub.status === 'high_risk_review';
+    const workDesc = `Legal advice and representation in connection with ${service.toLowerCase()}.`;
+    const committeeBtn = needsCommittee
+      ? `<button class="committee-btn" onclick="event.stopPropagation();openCommitteeModal('${name}','${email}','${sub.clientType||'natural'}','${sub.risk||'medium'}','${service}','${workDesc}')">⚑ Refer to committee</button>`
+      : '';
+    const committeeFlag = needsCommittee ? `<div class="committee-flag">⚑ Committee required</div>` : '';
+
     return `
       <tr onclick="toggleDetail('${dId}')" style="cursor:pointer">
-        <td><strong>${name}</strong><div style="font-size:11px;color:var(--text-3)">${sub.clientType === 'entity' ? 'Legal entity' : 'Natural person'}</div></td>
+        <td><strong>${name}</strong>${committeeFlag}<div style="font-size:11px;color:var(--text-3)">${sub.clientType === 'entity' ? 'Legal entity' : 'Natural person'}</div></td>
         <td><span class="badge badge-gray">${sub.clientType === 'entity' ? 'Entity' : 'Natural'}</span></td>
         <td>${service}</td>
         <td><span class="badge ${stBadge}">${stLbl}</span></td>
@@ -2600,6 +2793,7 @@ function renderDashboard(subs) {
         <td>—</td>
         <td style="color:var(--text-3);font-size:12px">${ago}</td>
         <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          ${committeeBtn}
           <button class="send-reminder-btn" onclick="event.stopPropagation();sendReminderEmail('${email}','${name}')">Send reminder</button>
           <button class="eng-toggle" onclick="event.stopPropagation();openEngModal('${name}','${email}','${service}','${sub.id}')">&#9993; Send engagement letter</button>
         </td>
