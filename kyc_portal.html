@@ -878,6 +878,41 @@
     transition: all 0.15s;
   }
   .eng-toggle:hover { background: #dbeafe; }
+
+  /* Engagement questionnaire */
+  .eng-modal-wide { max-width: 660px; }
+  .eng-steps {
+    display: flex; align-items: center; gap: 4px;
+    margin-bottom: 20px; padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .eng-step {
+    font-size: 12px; font-weight: 600; padding: 4px 12px;
+    border-radius: 6px; color: var(--text-3); background: var(--surface-3);
+    white-space: nowrap;
+  }
+  .eng-step.active { background: var(--brand); color: white; }
+  .eng-step.done { background: var(--green-bg); color: var(--green); }
+  .eng-step-sep { font-size: 12px; color: var(--border-strong); }
+  .team-member-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border: 1.5px solid var(--border);
+    border-radius: var(--radius); margin-bottom: 8px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .team-member-row:hover { border-color: var(--brand-light); background: var(--blue-bg); }
+  .team-member-row.selected { border-color: var(--brand-mid); background: #eff4ff; }
+  .team-check {
+    width: 18px; height: 18px; border: 2px solid var(--border-strong);
+    border-radius: 4px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: white;
+  }
+  .team-member-row.selected .team-check { background: var(--brand-mid); border-color: var(--brand-mid); }
+  .team-member-row.selected .team-check::after { content: '✓'; }
+  .team-name { font-size: 13px; font-weight: 600; flex: 1; }
+  .team-role { font-size: 12px; color: var(--text-3); }
+  .team-rate { font-size: 13px; font-weight: 600; color: var(--brand-mid); white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -1615,35 +1650,152 @@
   </div>
 </div>
 
-<!-- Engagement letter modal -->
+<!-- Engagement questionnaire modal -->
 <div class="modal-overlay" id="eng-modal">
-  <div class="modal-box">
-    <div class="modal-title">Send engagement letter</div>
-    <div class="modal-sub" id="eng-modal-sub">Sending to: —</div>
-
-    <div class="modal-field">
-      <label>Scope of engagement</label>
-      <input type="text" id="eng-scope" placeholder="e.g. Legal advice in connection with real estate acquisition">
+  <div class="modal-box eng-modal-wide">
+    <div class="eng-steps">
+      <div class="eng-step active" id="estep-0">1. Work</div>
+      <div class="eng-step-sep">→</div>
+      <div class="eng-step" id="estep-1">2. Fees</div>
+      <div class="eng-step-sep">→</div>
+      <div class="eng-step" id="estep-2">3. Team</div>
+      <div class="eng-step-sep">→</div>
+      <div class="eng-step" id="estep-3">4. Review</div>
     </div>
-    <div class="modal-field">
-      <label>Hourly rate (€)</label>
-      <input type="text" id="eng-rate" placeholder="e.g. 350" style="width:160px">
-    </div>
+    <div class="modal-title" id="eng-modal-title">Engagement questionnaire</div>
+    <div class="modal-sub" id="eng-modal-sub">Complete all steps to generate and send the engagement letter</div>
 
-    <div class="modal-field">
-      <label>Letter preview</label>
-      <div class="modal-preview" id="eng-preview">
-        Fill in the fields above to preview the engagement letter.
+    <!-- Step 0: Work description -->
+    <div id="eng-step-0">
+      <div class="modal-field">
+        <label>Describe the work we are going to perform <span class="req">*</span></label>
+        <textarea id="eng-work-desc" rows="4" style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;resize:vertical;" placeholder="e.g. We will advise the client on all legal aspects of the acquisition of a residential property located at Keizersgracht 123, Amsterdam, including due diligence, drafting the purchase agreement, and notarial coordination."></textarea>
+      </div>
+      <div class="modal-field">
+        <label>Estimated timeline</label>
+        <select id="eng-timeline" style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;">
+          <option value="to be agreed">Select estimated duration</option>
+          <option value="1–2 weeks">1–2 weeks</option>
+          <option value="approximately 1 month">1 month</option>
+          <option value="2–3 months">2–3 months</option>
+          <option value="3–6 months">3–6 months</option>
+          <option value="ongoing / to be agreed">Ongoing / to be agreed</option>
+        </select>
       </div>
     </div>
 
-    <div style="background:var(--amber-bg);border:1px solid #fcd34d;border-radius:var(--radius);padding:10px 14px;font-size:12px;color:var(--amber);margin-bottom:16px;">
-      ⚠ Sending this letter does not constitute commencement of services. Work may only begin after KYC is complete and the client has countersigned.
+    <!-- Step 1: Fee arrangement -->
+    <div id="eng-step-1" style="display:none">
+      <div class="modal-field">
+        <label>Fee structure <span class="req">*</span></label>
+        <div class="radio-group">
+          <label class="radio-option" onclick="selectFeeType('hourly', this)">
+            <input type="radio" name="fee_type" value="hourly">
+            <div class="radio-dot"></div>Hourly rate
+          </label>
+          <label class="radio-option" onclick="selectFeeType('fixed', this)">
+            <input type="radio" name="fee_type" value="fixed">
+            <div class="radio-dot"></div>Fixed fee
+          </label>
+          <label class="radio-option" onclick="selectFeeType('retainer', this)">
+            <input type="radio" name="fee_type" value="retainer">
+            <div class="radio-dot"></div>Retainer
+          </label>
+        </div>
+      </div>
+      <div id="fee-hourly-block" style="display:none">
+        <div class="modal-field" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:12px;color:var(--text-3);">
+          ℹ Hourly rates are determined by the team members you select in the next step.
+        </div>
+        <div class="modal-field" style="margin-top:12px;">
+          <label>Estimated hours per team member (for budget indication)</label>
+          <input type="number" id="eng-est-hours" placeholder="e.g. 20" style="width:160px;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;">
+        </div>
+      </div>
+      <div id="fee-fixed-block" style="display:none">
+        <div class="modal-field">
+          <label>Fixed fee amount (€, excl. VAT)</label>
+          <input type="number" id="eng-fixed-fee" placeholder="e.g. 5000" style="width:200px;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;">
+        </div>
+      </div>
+      <div id="fee-retainer-block" style="display:none">
+        <div class="modal-field">
+          <label>Monthly retainer (€, excl. VAT)</label>
+          <input type="number" id="eng-retainer" placeholder="e.g. 2000" style="width:200px;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;">
+        </div>
+        <div class="modal-field">
+          <label>Retainer period</label>
+          <select id="eng-retainer-period" style="width:200px;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;">
+            <option value="3 months">3 months</option>
+            <option value="6 months">6 months</option>
+            <option value="12 months">12 months</option>
+            <option value="an open-ended period">Open-ended</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-field">
+        <label>Disbursements &amp; expenses</label>
+        <div class="radio-group">
+          <label class="radio-option selected" onclick="selectRadio(this,'disb','included')">
+            <input type="radio" name="disb" value="included" checked>
+            <div class="radio-dot"></div>Included in fee
+          </label>
+          <label class="radio-option" onclick="selectRadio(this,'disb','at_cost')">
+            <input type="radio" name="disb" value="at_cost">
+            <div class="radio-dot"></div>Charged at cost
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Team -->
+    <div id="eng-step-2" style="display:none">
+      <div class="modal-field">
+        <label>Select team members for this matter</label>
+        <div id="team-member-list"></div>
+      </div>
+      <div id="fee-team-summary" style="display:none;margin-top:4px;">
+        <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:8px;">Fee summary</div>
+        <div id="fee-team-table"></div>
+      </div>
+    </div>
+
+    <!-- Step 3: Review & send -->
+    <div id="eng-step-3" style="display:none">
+      <div class="modal-field">
+        <label>Engagement letter preview</label>
+        <div class="modal-preview" id="eng-preview" style="max-height:340px;font-size:12.5px;line-height:1.75;">
+          Complete the previous steps to generate the letter preview.
+        </div>
+      </div>
+      <div style="background:var(--amber-bg);border:1px solid #fcd34d;border-radius:var(--radius);padding:10px 14px;font-size:12px;color:var(--amber);margin-bottom:16px;">
+        ⚠ Sending this letter does not constitute commencement of services. Work may only begin after KYC is complete and the client has countersigned.
+      </div>
     </div>
 
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeEngModal()" style="padding:9px 20px;font-size:13px;">Cancel</button>
-      <button class="btn-primary" onclick="sendEngLetter()" style="width:auto;padding:9px 24px;font-size:13px;">Send by email</button>
+      <button class="btn-secondary" id="eng-btn-back" onclick="engPrevStep()" style="display:none;padding:9px 20px;font-size:13px;">← Back</button>
+      <button class="btn-primary" id="eng-btn-next" onclick="engNextStep()" style="width:auto;padding:9px 24px;font-size:13px;">Continue →</button>
+      <button class="btn-primary" id="eng-btn-send" onclick="sendEngLetter()" style="display:none;width:auto;padding:9px 24px;font-size:13px;">✉ Send to client</button>
+    </div>
+  </div>
+</div>
+
+<!-- Client engagement letter modal -->
+<div class="modal-overlay" id="client-letter-modal">
+  <div class="modal-box" style="max-width:680px;max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+      <div style="background:var(--green-bg);border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">✉</div>
+      <div>
+        <div class="modal-title" style="margin-bottom:2px;">Engagement Letter Received</div>
+        <div class="modal-sub" style="margin-bottom:0;">From ClearDue Legal B.V. — please review and countersign to confirm your instructions</div>
+      </div>
+    </div>
+    <div id="client-letter-content" style="font-size:13px;line-height:1.8;color:var(--text);"></div>
+    <div class="modal-actions" style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
+      <button class="btn-secondary" onclick="document.getElementById('client-letter-modal').classList.remove('active')" style="padding:9px 20px;font-size:13px;">Review later</button>
+      <button class="btn-primary" onclick="countersignLetter()" style="width:auto;padding:9px 24px;font-size:13px;">✓ Countersign &amp; confirm</button>
     </div>
   </div>
 </div>
@@ -1860,31 +2012,187 @@ function openNewFile() {
   document.querySelector('.nav-tab').classList.add('active');
 }
 
-/* Engagement letter modal */
+/* ===== Engagement questionnaire ===== */
+const TEAM_MEMBERS = [
+  { id: 'tm1', name: 'Sophie van Dam',   role: 'Partner',           rate: 450 },
+  { id: 'tm2', name: 'Mark Hendriks',    role: 'Senior Associate',  rate: 325 },
+  { id: 'tm3', name: 'Lisa de Boer',     role: 'Associate',         rate: 250 },
+  { id: 'tm4', name: 'Tom Bakker',       role: 'Junior Associate',  rate: 175 },
+  { id: 'tm5', name: 'Emma Visser',      role: 'Paralegal',         rate: 125 },
+];
+
 let engClient = {};
+let engStep = 0;
+let selectedTeam = new Set();
+let feeType = '';
+
 function openEngModal(name, email, service) {
   engClient = { name, email, service };
-  document.getElementById('eng-modal-sub').textContent = 'Sending to: ' + name + ' (' + email + ')';
-  document.getElementById('eng-scope').value = 'Legal advice in connection with ' + service.toLowerCase();
-  document.getElementById('eng-rate').value = '';
-  updateEngPreview();
+  engStep = 0;
+  selectedTeam = new Set();
+  feeType = '';
+  document.getElementById('eng-work-desc').value = 'Legal advice and representation in connection with ' + service.toLowerCase() + '.';
+  document.getElementById('eng-timeline').value = 'to be agreed';
+  document.getElementById('eng-est-hours').value = '';
+  document.getElementById('eng-fixed-fee').value = '';
+  document.getElementById('eng-retainer').value = '';
+  document.querySelectorAll('[name="fee_type"]').forEach(r => r.closest('.radio-option').classList.remove('selected'));
+  ['fee-hourly-block','fee-fixed-block','fee-retainer-block'].forEach(id => document.getElementById(id).style.display = 'none');
+  renderTeamList();
+  showEngStep(0);
   document.getElementById('eng-modal').classList.add('active');
-  document.getElementById('eng-scope').addEventListener('input', updateEngPreview);
-  document.getElementById('eng-rate').addEventListener('input', updateEngPreview);
 }
 
-function updateEngPreview() {
-  const scope = document.getElementById('eng-scope').value || '[scope of engagement]';
-  const rate = document.getElementById('eng-rate').value ? '€' + document.getElementById('eng-rate').value + ' per hour (excl. VAT)' : '[hourly rate to be confirmed]';
+function renderTeamList() {
+  document.getElementById('team-member-list').innerHTML = TEAM_MEMBERS.map(m => `
+    <div class="team-member-row" id="tmrow-${m.id}" onclick="toggleTeamMember('${m.id}', this)">
+      <div class="team-check"></div>
+      <div style="flex:1">
+        <div class="team-name">${m.name}</div>
+        <div class="team-role">${m.role}</div>
+      </div>
+      <div class="team-rate">€${m.rate}/hr</div>
+    </div>
+  `).join('');
+}
+
+function toggleTeamMember(id, el) {
+  if (selectedTeam.has(id)) { selectedTeam.delete(id); el.classList.remove('selected'); }
+  else { selectedTeam.add(id); el.classList.add('selected'); }
+  updateTeamFeeSummary();
+}
+
+function updateTeamFeeSummary() {
+  const summary = document.getElementById('fee-team-summary');
+  const table = document.getElementById('fee-team-table');
+  const selected = TEAM_MEMBERS.filter(m => selectedTeam.has(m.id));
+  if (!selected.length) { summary.style.display = 'none'; return; }
+  summary.style.display = 'block';
+  const estHours = parseFloat(document.getElementById('eng-est-hours').value) || 0;
+  const rows = selected.map(m => {
+    const est = estHours > 0 ? `<span style="font-size:11px;color:var(--text-3);display:block;">est. €${(m.rate * estHours).toLocaleString()}</span>` : '';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-size:13px;">
+      <div><strong>${m.name}</strong> <span style="color:var(--text-3);font-size:12px;">${m.role}</span></div>
+      <div style="text-align:right;"><span style="font-weight:600;color:var(--brand-mid);">€${m.rate}/hr</span>${est}</div>
+    </div>`;
+  }).join('');
+  table.innerHTML = `<div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">${rows}</div>`;
+}
+
+function selectFeeType(type, el) {
+  feeType = type;
+  document.querySelectorAll('[name="fee_type"]').forEach(r => r.closest('.radio-option').classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('fee-hourly-block').style.display  = type === 'hourly'   ? 'block' : 'none';
+  document.getElementById('fee-fixed-block').style.display   = type === 'fixed'    ? 'block' : 'none';
+  document.getElementById('fee-retainer-block').style.display = type === 'retainer' ? 'block' : 'none';
+}
+
+function showEngStep(step) {
+  engStep = step;
+  for (let i = 0; i < 4; i++) {
+    const s = document.getElementById('eng-step-' + i);
+    if (s) s.style.display = i === step ? 'block' : 'none';
+    const dot = document.getElementById('estep-' + i);
+    if (dot) { dot.classList.remove('active','done'); if (i === step) dot.classList.add('active'); else if (i < step) dot.classList.add('done'); }
+  }
+  document.getElementById('eng-btn-back').style.display = step > 0 ? 'inline-flex' : 'none';
+  document.getElementById('eng-btn-next').style.display = step < 3 ? 'inline-flex' : 'none';
+  document.getElementById('eng-btn-send').style.display = step === 3 ? 'inline-flex' : 'none';
+  if (step === 2) updateTeamFeeSummary();
+  if (step === 3) buildEngLetterPreview();
+}
+
+function engNextStep() {
+  if (engStep === 0 && !document.getElementById('eng-work-desc').value.trim()) {
+    alert('Please describe the work to be performed.'); return;
+  }
+  if (engStep === 1 && !feeType) { alert('Please select a fee structure.'); return; }
+  showEngStep(engStep + 1);
+}
+function engPrevStep() { showEngStep(engStep - 1); }
+
+function buildEngLetterPreview() {
   const today = new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
-  document.getElementById('eng-preview').innerHTML =
-    '<strong>Engagement letter — ' + today + '</strong><br><br>' +
-    'Dear ' + (engClient.name || 'Client') + ',<br><br>' +
-    'We are pleased to confirm our engagement to provide: <em>' + scope + '</em>.<br><br>' +
-    'Our fees are based on time spent at ' + rate + '. Our general terms and conditions apply and are enclosed.<br><br>' +
-    'In accordance with the Wet ter voorkoming van witwassen en financieren van terrorisme (Wwft), our engagement is conditional upon satisfactory completion of client identification. We cannot commence work until this process is complete.<br><br>' +
-    'Please countersign and return this letter to confirm your instructions.<br><br>' +
-    'Yours sincerely,<br>[Lawyer name] | ClearDue Legal';
+  const desc = document.getElementById('eng-work-desc').value || '[description of work]';
+  const timeline = document.getElementById('eng-timeline').value || 'to be agreed';
+  const selected = TEAM_MEMBERS.filter(m => selectedTeam.has(m.id));
+  const teamStr = selected.length ? selected.map(m => m.name).join(', ') : 'to be confirmed';
+  const disbursements = document.querySelector('[name="disb"]:checked')?.value === 'at_cost'
+    ? 'Disbursements and out-of-pocket expenses are charged separately at cost.'
+    : 'Standard disbursements are included in our fees unless otherwise agreed.';
+
+  let feeText = '';
+  if (feeType === 'hourly') {
+    if (selected.length) {
+      const teamLines = selected.map(m => `${m.name} (${m.role}): €${m.rate}/hr`).join('; ');
+      feeText = `Our fees are charged on a time-spent basis. The team assigned to this matter and their hourly rates are: ${teamLines}.`;
+      const estHours = parseFloat(document.getElementById('eng-est-hours').value);
+      if (estHours) {
+        const total = selected.reduce((s, m) => s + m.rate * estHours, 0);
+        feeText += ` Based on an estimate of ${estHours} hours per team member, the indicative budget is approximately €${total.toLocaleString()} (excl. VAT).`;
+      }
+    } else {
+      feeText = 'Our fees are charged on a time-spent basis at our standard hourly rates.';
+    }
+  } else if (feeType === 'fixed') {
+    const amt = document.getElementById('eng-fixed-fee').value;
+    feeText = `Our fees for this engagement are fixed at €${amt || '[amount]'} (excl. VAT).`;
+  } else if (feeType === 'retainer') {
+    const amt = document.getElementById('eng-retainer').value;
+    const period = document.getElementById('eng-retainer-period').value;
+    feeText = `Our fees are structured as a monthly retainer of €${amt || '[amount]'} (excl. VAT) for ${period}.`;
+  }
+  feeText += ' ' + disbursements;
+
+  const letter = buildFormalEngagementLetter({ today, clientName: engClient.name, service: engClient.service, desc, timeline, feeText, teamStr, leadLawyer: selected[0]?.name || 'ClearDue Legal' });
+  document.getElementById('eng-preview').innerHTML = letter;
+  window._pendingEngLetter = letter;
+}
+
+function buildFormalEngagementLetter({ today, clientName, service, desc, timeline, feeText, teamStr, leadLawyer }) {
+  return `
+    <div style="font-family:'DM Sans',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--brand);letter-spacing:-0.3px;">ClearDue Legal B.V.</div>
+          <div style="font-size:11px;color:var(--text-3);line-height:1.6;">Herengracht 400, 1017 BX Amsterdam<br>T: +31 20 555 0100 · E: info@cleardue.legal<br>KvK: 80123456 · BTW: NL003456789B01</div>
+        </div>
+        <div style="text-align:right;font-size:11px;color:var(--text-3);">${today}<br>Ref: CD/${new Date().getFullYear()}/ENG</div>
+      </div>
+      <div style="margin-bottom:20px;font-size:13px;">
+        <strong>${clientName}</strong>
+      </div>
+      <div style="margin-bottom:16px;font-weight:600;font-size:13px;color:var(--brand);">
+        Subject: Engagement letter — ${service}
+      </div>
+      <p style="margin-bottom:12px;">Dear ${clientName},</p>
+      <p style="margin-bottom:14px;">We are pleased to confirm our engagement to act on your behalf in the above-referenced matter. This letter sets out the basis on which we will provide our legal services.</p>
+      <p style="margin-bottom:6px;font-weight:600;color:var(--brand);">1. Scope of services</p>
+      <p style="margin-bottom:14px;">${desc} The estimated timeline for this engagement is <strong>${timeline}</strong>.</p>
+      <p style="margin-bottom:6px;font-weight:600;color:var(--brand);">2. Fee arrangement</p>
+      <p style="margin-bottom:14px;">${feeText} Invoices will be issued monthly, payable within 14 days. All amounts are exclusive of VAT (21%).</p>
+      <p style="margin-bottom:6px;font-weight:600;color:var(--brand);">3. Our team</p>
+      <p style="margin-bottom:14px;">The following professionals are assigned to your matter: <strong>${teamStr}</strong>. You will be notified if the composition of the team changes materially.</p>
+      <p style="margin-bottom:6px;font-weight:600;color:var(--brand);">4. Compliance obligations (Wwft)</p>
+      <p style="margin-bottom:14px;">In accordance with the <em>Wet ter voorkoming van witwassen en financieren van terrorisme</em> (Wwft), our engagement is subject to satisfactory completion of client identification and due diligence. We are unable to commence substantive work until this process is approved by our compliance team.</p>
+      <p style="margin-bottom:6px;font-weight:600;color:var(--brand);">5. General terms and conditions</p>
+      <p style="margin-bottom:14px;">Our <em>Algemene Voorwaarden</em> govern all engagements and are attached to this letter. Dutch law applies. Any disputes are subject to the exclusive jurisdiction of the courts of Amsterdam.</p>
+      <p style="margin-bottom:6px;font-weight:600;color:var(--brand);">6. Confirmation of instructions</p>
+      <p style="margin-bottom:20px;">Please countersign and return a copy of this letter to confirm your instructions. We look forward to working with you.</p>
+      <p style="margin-bottom:2px;">Yours sincerely,</p>
+      <p style="font-weight:600;margin-bottom:2px;">${leadLawyer}</p>
+      <p style="font-size:12px;color:var(--text-3);margin-bottom:28px;">ClearDue Legal B.V.</p>
+      <div style="border-top:1px solid var(--border);padding-top:16px;">
+        <p style="font-size:12px;font-weight:600;color:var(--text-3);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Client countersignature</p>
+        <p style="font-size:13px;margin-bottom:16px;">I/We confirm our instructions on the terms set out above and confirm that we have read and agree to the General Terms and Conditions.</p>
+        <div style="display:flex;gap:32px;">
+          <div style="flex:1;border-bottom:1px solid var(--border-strong);padding-bottom:4px;font-size:11px;color:var(--text-3);">Signature</div>
+          <div style="flex:1;border-bottom:1px solid var(--border-strong);padding-bottom:4px;font-size:11px;color:var(--text-3);">Print name</div>
+          <div style="width:140px;border-bottom:1px solid var(--border-strong);padding-bottom:4px;font-size:11px;color:var(--text-3);">Date</div>
+        </div>
+      </div>
+    </div>`;
 }
 
 function closeEngModal() {
@@ -1892,13 +2200,27 @@ function closeEngModal() {
 }
 
 function sendEngLetter() {
-  const scope = document.getElementById('eng-scope').value;
-  const rate = document.getElementById('eng-rate').value;
-  if (!scope || !rate) { alert('Please fill in scope and hourly rate before sending.'); return; }
   closeEngModal();
+  document.getElementById('client-letter-content').innerHTML = window._pendingEngLetter || '';
   const toast = document.createElement('div');
   toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:var(--brand);color:white;padding:14px 22px;border-radius:10px;font-size:13px;font-weight:500;z-index:300;box-shadow:0 4px 20px rgba(0,0,0,0.2);animation:slideIn 0.2s ease';
   toast.textContent = '✓ Engagement letter sent to ' + engClient.email;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('view-client').classList.add('active');
+    document.querySelector('.nav-tab[onclick*="client"]').classList.add('active');
+    document.getElementById('client-letter-modal').classList.add('active');
+  }, 600);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+function countersignLetter() {
+  document.getElementById('client-letter-modal').classList.remove('active');
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:var(--green);color:white;padding:14px 22px;border-radius:10px;font-size:13px;font-weight:500;z-index:300;box-shadow:0 4px 20px rgba(0,0,0,0.2)';
+  toast.textContent = '✓ Engagement letter countersigned and returned to ClearDue Legal';
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 4000);
 }
