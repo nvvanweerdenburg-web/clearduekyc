@@ -1942,16 +1942,16 @@ async function sendClientInvite() {
   btn.textContent = 'Sending…';
   btn.disabled = true;
   try {
-    // Save invite (with scope) to Firestore so client sees it on login
+    // Save invite to Firestore (non-blocking — email sends even if this fails)
     if (db) {
-      await db.collection('invites').add({
+      db.collection('invites').add({
         email, scopeOfWork: scope,
         invitedBy: currentUser?.email || 'ClearDue Legal',
         status: 'pending',
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
+      }).catch(e => console.warn('Firestore invite save failed (check security rules):', e.message));
     }
-    // Send invite email (includes scope preview)
+    // Send invite email
     const res = await fetch('/api/invite-client', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1980,10 +1980,10 @@ let _pendingInviteData = null;
 async function checkForPendingInvite(email) {
   if (!db || !email) return;
   try {
+    // Simple query — no orderBy to avoid needing a composite index
     const snap = await db.collection('invites')
       .where('email', '==', email)
       .where('status', '==', 'pending')
-      .orderBy('createdAt', 'desc')
       .limit(1)
       .get();
     if (!snap.empty) {
@@ -1991,7 +1991,7 @@ async function checkForPendingInvite(email) {
       _pendingInviteData = snap.docs[0].data();
       showScopeConfirmModal(_pendingInviteData.scopeOfWork || '');
     }
-  } catch(e) { console.error('Invite check:', e); }
+  } catch(e) { console.warn('Invite check failed (check Firestore rules):', e.message); }
 }
 
 function showScopeConfirmModal(scope) {
