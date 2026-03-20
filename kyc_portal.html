@@ -922,9 +922,13 @@
     <div class="dot"></div>
     ClearDue
   </div>
-  <div class="nav-tabs">
-    <button class="nav-tab active" onclick="switchView('client')">Client Portal</button>
-    <button class="nav-tab" onclick="switchView('lawyer')">Lawyer Dashboard</button>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="switchView('client')">Client Portal</button>
+      <button class="nav-tab" onclick="switchView('lawyer')">Lawyer Dashboard</button>
+    </div>
+    <span id="user-display" style="font-size:12px;color:rgba(255,255,255,0.55);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+    <button id="logout-btn" onclick="lawyerLogout()" style="display:none;font-size:12px;color:rgba(255,255,255,0.55);background:none;border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:inherit;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.55)'">Sign out</button>
   </div>
 </nav>
 
@@ -2223,6 +2227,421 @@ function countersignLetter() {
   toast.textContent = '✓ Engagement letter countersigned and returned to ClearDue Legal';
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 4000);
+}
+</script>
+
+<!-- Lawyer login modal -->
+<div class="modal-overlay" id="login-modal">
+  <div class="modal-box" style="max-width:400px;">
+    <div class="modal-title">Lawyer sign-in</div>
+    <div class="modal-sub">Access to the Lawyer Dashboard requires authentication</div>
+    <div class="modal-field">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="name@cleardue.legal" autocomplete="username" style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;">
+    </div>
+    <div class="modal-field">
+      <label>Password</label>
+      <input type="password" id="login-password" autocomplete="current-password" style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;" onkeydown="if(event.key==='Enter') lawyerLogin()">
+    </div>
+    <div id="login-error" style="font-size:12px;color:var(--red);margin-bottom:12px;min-height:16px;"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="document.getElementById('login-modal').classList.remove('active')" style="padding:9px 20px;font-size:13px;">Cancel</button>
+      <button class="btn-primary" id="login-btn" onclick="lawyerLogin()" style="width:auto;padding:9px 24px;font-size:13px;">Sign in</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDKs (compat v10) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+
+<script>
+// ===== Firebase initialisation (config served from /api/firebase-config) =====
+let db = null, auth = null, storage = null, currentUser = null;
+
+async function initFirebase() {
+  try {
+    const res = await fetch('/api/firebase-config');
+    const cfg = await res.json();
+    if (!cfg.apiKey) { console.warn('Firebase: no config found — running in demo mode'); return; }
+    firebase.initializeApp(cfg);
+    db      = firebase.firestore();
+    auth    = firebase.auth();
+    storage = firebase.storage();
+
+    auth.onAuthStateChanged(user => {
+      currentUser = user;
+      const display = document.getElementById('user-display');
+      const logoutBtn = document.getElementById('logout-btn');
+      if (user) {
+        if (display) display.textContent = user.email;
+        if (logoutBtn) logoutBtn.style.display = 'inline-block';
+        document.getElementById('login-modal').classList.remove('active');
+      } else {
+        if (display) display.textContent = '';
+        if (logoutBtn) logoutBtn.style.display = 'none';
+      }
+    });
+  } catch(e) {
+    console.warn('Firebase init failed:', e.message);
+  }
+}
+initFirebase();
+
+// ===== Auth =====
+function lawyerLogin() {
+  if (!auth) { document.getElementById('login-error').textContent = 'Firebase not configured.'; return; }
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl    = document.getElementById('login-error');
+  const btn      = document.getElementById('login-btn');
+  errEl.textContent = '';
+  if (!email || !password) { errEl.textContent = 'Enter your email and password.'; return; }
+  btn.textContent = 'Signing in…'; btn.disabled = true;
+  auth.signInWithEmailAndPassword(email, password)
+    .then(() => {
+      btn.textContent = 'Sign in'; btn.disabled = false;
+      document.getElementById('login-modal').classList.remove('active');
+      // Open lawyer dashboard
+      document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+      document.getElementById('view-lawyer').classList.add('active');
+      document.querySelector('.nav-tab[onclick*="lawyer"]').classList.add('active');
+      loadDashboard();
+    })
+    .catch(err => {
+      btn.textContent = 'Sign in'; btn.disabled = false;
+      errEl.textContent = (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password')
+        ? 'Invalid email or password.' : err.message;
+    });
+}
+
+function lawyerLogout() {
+  if (auth) auth.signOut().then(() => {
+    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('view-client').classList.add('active');
+    document.querySelector('.nav-tab[onclick*="client"]').classList.add('active');
+  });
+}
+
+// Intercept lawyer dashboard nav click to require auth
+const _origSwitchView = window.switchView;
+window.switchView = function(v) {
+  if (v === 'lawyer') {
+    if (!currentUser) {
+      document.getElementById('login-modal').classList.add('active');
+      setTimeout(() => document.getElementById('login-email').focus(), 100);
+      return;
+    }
+    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('view-lawyer').classList.add('active');
+    if (event && event.target) event.target.classList.add('active');
+    loadDashboard();
+    return;
+  }
+  _origSwitchView(v);
+};
+
+// ===== Firestore: Lawyer dashboard =====
+let _unsubDash = null;
+
+function loadDashboard() {
+  if (!db) return;
+  if (_unsubDash) _unsubDash();
+  _unsubDash = db.collection('submissions')
+    .orderBy('createdAt', 'desc')
+    .onSnapshot(snap => {
+      const subs = [];
+      snap.forEach(doc => subs.push({ id: doc.id, ...doc.data() }));
+      renderDashboard(subs);
+    }, err => console.error('Firestore:', err));
+}
+
+function renderDashboard(subs) {
+  // Metrics
+  const counts = { total: subs.length, incomplete: 0, high: 0, approved: 0 };
+  subs.forEach(s => {
+    if (s.status === 'incomplete') counts.incomplete++;
+    if (s.risk === 'high') counts.high++;
+    if (s.status === 'approved') counts.approved++;
+  });
+  const mv = document.querySelectorAll('.metric-value');
+  if (mv[0]) mv[0].textContent = counts.total;
+  if (mv[1]) mv[1].textContent = counts.incomplete;
+  if (mv[2]) mv[2].textContent = counts.high;
+  if (mv[3]) mv[3].textContent = counts.approved;
+
+  const tbody = document.querySelector('#view-lawyer table tbody');
+  if (!tbody) return;
+
+  if (!subs.length) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-3);font-size:13px;">No KYC submissions yet. New files will appear here in real time.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = subs.map(sub => {
+    const docCount  = Object.keys(sub.docs || {}).length;
+    const totalDocs = sub.totalDocs || 2;
+    const riskCls   = { high: 'risk-high', medium: 'risk-med', low: 'risk-low' }[sub.risk] || 'risk-med';
+    const riskLbl   = { high: 'High', medium: 'Medium', low: 'Low' }[sub.risk] || 'Medium';
+    const stBadge   = { approved: 'badge-green', incomplete: 'badge-amber', pending: 'badge-blue', high_risk_review: 'badge-red' }[sub.status] || 'badge-gray';
+    const stLbl     = { approved: 'Approved', incomplete: 'Incomplete', pending: 'Pending review', high_risk_review: 'High risk review' }[sub.status] || sub.status;
+    const pips      = Array.from({length: totalDocs}, (_, i) => `<div class="doc-pip ${i < docCount ? 'green' : 'red'}"></div>`).join('');
+    const ago       = sub.createdAt ? _timeAgo(sub.createdAt.toDate()) : '—';
+    const dId       = 'df-' + sub.id;
+    const name      = _esc(sub.clientName || '—');
+    const email     = _esc(sub.email || '');
+    const service   = _esc(sub.service || 'Legal services');
+
+    return `
+      <tr onclick="toggleDetail('${dId}')" style="cursor:pointer">
+        <td><strong>${name}</strong><div style="font-size:11px;color:var(--text-3)">${sub.clientType === 'entity' ? 'Legal entity' : 'Natural person'}</div></td>
+        <td><span class="badge badge-gray">${sub.clientType === 'entity' ? 'Entity' : 'Natural'}</span></td>
+        <td>${service}</td>
+        <td><span class="badge ${stBadge}">${stLbl}</span></td>
+        <td><div class="doc-match">${pips}<div style="font-size:11px;color:var(--text-3);margin-left:4px">${docCount}/${totalDocs}</div></div></td>
+        <td><div class="risk-light ${riskCls}"><div class="risk-dot"></div>${riskLbl}</div></td>
+        <td>—</td>
+        <td style="color:var(--text-3);font-size:12px">${ago}</td>
+        <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button class="eng-toggle" onclick="event.stopPropagation();openEngModal('${name}','${email}','${service}','${sub.id}')">&#9993; Send engagement letter</button>
+        </td>
+      </tr>
+      <tr id="${dId}-row"><td colspan="9" style="padding:0;background:var(--surface-2)">
+        <div class="detail-panel" id="${dId}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="font-size:16px;font-weight:600;">${name} — File detail</h3>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-sm" onclick="_viewDocs('${sub.id}')">View documents</button>
+              <button class="btn-sm primary" onclick="_approveFile('${sub.id}')">Approve file</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;font-size:13px;color:var(--text-2);">
+            <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:6px;">Client</div><div>${name}</div><div style="color:var(--text-3)">${email}</div></div>
+            <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:6px;">Service</div><div>${service}</div></div>
+            <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:6px;">Submitted</div><div>${sub.createdAt ? sub.createdAt.toDate().toLocaleDateString('nl-NL') : '—'}</div><div style="color:var(--text-3)">${docCount}/${totalDocs} docs uploaded</div></div>
+          </div>
+        </div>
+      </td></tr>`;
+  }).join('');
+}
+
+async function _approveFile(id) {
+  if (!db) return;
+  await db.collection('submissions').doc(id).update({ status: 'approved', updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  _toast('✓ File approved');
+}
+
+async function _viewDocs(id) {
+  if (!db || !storage) return;
+  const doc = await db.collection('submissions').doc(id).get();
+  const docs = doc.data()?.docs || {};
+  if (!Object.keys(docs).length) { alert('No documents uploaded for this file.'); return; }
+  const urls = await Promise.all(Object.entries(docs).map(async ([docId, path]) => {
+    const url = await storage.ref(path).getDownloadURL();
+    return `<a href="${url}" target="_blank" style="display:block;margin-bottom:6px;color:var(--brand-mid);font-size:13px;">📄 ${docId}</a>`;
+  }));
+  const win = window.open('', '_blank');
+  win.document.write(`<html><body style="font-family:sans-serif;padding:24px"><h2>Documents — ${doc.data()?.clientName}</h2>${urls.join('')}</body></html>`);
+}
+
+// ===== Firestore: save KYC submission =====
+let _currentSubmissionId = null;
+
+// Override handleUpload to store actual File objects (needed for Storage upload)
+const _origHandleUpload = window.handleUpload;
+window.handleUpload = function(input, docId) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  if (file.size > 10 * 1024 * 1024) { alert('File too large. Maximum size is 10 MB.'); input.value = ''; return; }
+  uploadedFiles[docId] = { name: file.name, file };
+  const status = document.getElementById('status-' + docId);
+  const label  = document.getElementById('label-' + docId);
+  status.classList.remove('missing', 'required');
+  status.classList.add('uploaded');
+  status.textContent = '✓';
+  label.textContent = '✓ ' + (file.name.length > 20 ? file.name.substring(0, 18) + '…' : file.name);
+  label.classList.add('uploaded');
+  checkDeclaration();
+};
+
+// Override submitForm to persist to Firestore + Storage
+window.submitForm = async function() {
+  const checked = document.getElementById('declaration-check')?.checked;
+  if (!checked) { alert('Please confirm the declaration before submitting.'); return; }
+
+  const btn = document.getElementById('btn-submit');
+  if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+
+  try {
+    const fd = _collectFormData();
+    const riskCountry = clientType === 'natural'
+      ? document.getElementById('f-country')?.value
+      : document.getElementById('f-inc-country')?.value;
+    const risk = HIGH_RISK_COUNTRIES.includes(riskCountry) ? 'high' : 'medium';
+
+    if (db) {
+      const subRef = await db.collection('submissions').add({
+        clientType, clientName: fd.name, email: fd.email, service: fd.service,
+        formData: fd, status: 'incomplete', risk, docs: {},
+        totalDocs: Object.keys(uploadedFiles).length || 2,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      _currentSubmissionId = subRef.id;
+
+      const docPaths = {};
+      for (const [docId, fi] of Object.entries(uploadedFiles)) {
+        if (fi.file) {
+          const p = `documents/${subRef.id}/${docId}/${fi.name}`;
+          await storage.ref(p).put(fi.file);
+          docPaths[docId] = p;
+        }
+      }
+      const uploaded = Object.keys(docPaths).length;
+      await subRef.update({
+        docs: docPaths,
+        status: uploaded > 0 ? 'pending' : 'incomplete',
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    // Show confirmation step
+    document.getElementById('step-3').style.display = 'none';
+    document.getElementById('step-4').style.display = 'block';
+    updateProgress(4);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch(err) {
+    console.error('Submit error:', err);
+    if (btn) { btn.disabled = false; btn.textContent = 'Submit'; }
+    alert('Submission failed: ' + err.message);
+  }
+};
+
+function _collectFormData() {
+  if (clientType === 'natural') {
+    return {
+      name: [document.getElementById('f-firstname')?.value, document.getElementById('f-lastname')?.value].filter(Boolean).join(' '),
+      email:       document.getElementById('f-email')?.value || '',
+      dob:         document.getElementById('f-dob')?.value || '',
+      nationality: document.getElementById('f-nationality')?.value || '',
+      country:     document.getElementById('f-country')?.value || '',
+      bsn:         document.getElementById('f-bsn')?.value || '',
+      service:     document.getElementById('f-service')?.value || '',
+    };
+  }
+  return {
+    name:      document.getElementById('f-company')?.value || '',
+    email:     document.getElementById('f-contact-email')?.value || '',
+    kvk:       document.getElementById('f-kvk')?.value || '',
+    country:   document.getElementById('f-inc-country')?.value || '',
+    legalForm: document.getElementById('f-legal-form')?.value || '',
+    contact:   document.getElementById('f-contact')?.value || '',
+    service:   document.getElementById('f-service')?.value || '',
+  };
+}
+
+// ===== Firestore: engagement letters =====
+let _currentLetterId = null;
+
+// Extend openEngModal to accept submissionId (4th arg)
+const _origOpenEngModal = window.openEngModal;
+window.openEngModal = function(name, email, service, submissionId) {
+  engClient = { name, email, service, submissionId: submissionId || _currentSubmissionId || null };
+  engStep = 0; selectedTeam = new Set(); feeType = '';
+  document.getElementById('eng-work-desc').value = 'Legal advice and representation in connection with ' + service.toLowerCase() + '.';
+  document.getElementById('eng-timeline').value = 'to be agreed';
+  document.getElementById('eng-est-hours').value = '';
+  document.getElementById('eng-fixed-fee').value = '';
+  document.getElementById('eng-retainer').value = '';
+  document.querySelectorAll('[name="fee_type"]').forEach(r => r.closest('.radio-option').classList.remove('selected'));
+  ['fee-hourly-block','fee-fixed-block','fee-retainer-block'].forEach(id => document.getElementById(id).style.display = 'none');
+  renderTeamList();
+  showEngStep(0);
+  document.getElementById('eng-modal').classList.add('active');
+};
+
+// Override sendEngLetter to save to Firestore
+const _origSendEngLetter = window.sendEngLetter;
+window.sendEngLetter = async function() {
+  closeEngModal();
+  document.getElementById('client-letter-content').innerHTML = window._pendingEngLetter || '';
+
+  if (db) {
+    try {
+      const ref = await db.collection('engagement_letters').add({
+        clientName:      engClient.name,
+        email:           engClient.email,
+        service:         engClient.service,
+        submissionId:    engClient.submissionId || null,
+        workDescription: document.getElementById('eng-work-desc').value,
+        feeType,
+        team:            TEAM_MEMBERS.filter(m => selectedTeam.has(m.id)),
+        letterHTML:      window._pendingEngLetter || '',
+        status:          'sent',
+        sentBy:          currentUser?.email || 'unknown',
+        sentAt:          firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      _currentLetterId = ref.id;
+
+      if (engClient.submissionId) {
+        await db.collection('submissions').doc(engClient.submissionId).update({
+          engagementLetterSent: true,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    } catch(e) { console.error('Save letter error:', e); }
+  }
+
+  _toast('✓ Engagement letter sent to ' + engClient.email);
+  setTimeout(() => {
+    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('view-client').classList.add('active');
+    document.querySelector('.nav-tab[onclick*="client"]').classList.add('active');
+    document.getElementById('client-letter-modal').classList.add('active');
+  }, 600);
+};
+
+// Override countersignLetter to update Firestore
+window.countersignLetter = async function() {
+  document.getElementById('client-letter-modal').classList.remove('active');
+  if (db && _currentLetterId) {
+    try {
+      await db.collection('engagement_letters').doc(_currentLetterId).update({
+        status: 'countersigned',
+        countersignedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch(e) { console.error('Countersign error:', e); }
+  }
+  _toast('✓ Engagement letter countersigned and returned to ClearDue Legal', 'green');
+};
+
+// ===== Utilities =====
+function _toast(msg, color) {
+  const el = document.createElement('div');
+  el.style.cssText = `position:fixed;bottom:28px;right:28px;background:${color === 'green' ? 'var(--green)' : 'var(--brand)'};color:white;padding:14px 22px;border-radius:10px;font-size:13px;font-weight:500;z-index:300;box-shadow:0 4px 20px rgba(0,0,0,0.2);animation:slideIn 0.2s ease`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function _timeAgo(d) {
+  const m = Math.floor((Date.now() - d) / 60000);
+  if (m < 1) return 'Just now';
+  if (m < 60) return m + ' min ago';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + ' hr ago';
+  const days = Math.floor(h / 24);
+  return days === 1 ? 'Yesterday' : days + ' days ago';
+}
+
+function _esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 </script>
 
