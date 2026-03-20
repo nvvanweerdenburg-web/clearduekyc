@@ -2,12 +2,64 @@ const express    = require('express');
 const path       = require('path');
 const nodemailer = require('nodemailer');
 const { Resend } = require('resend');
+const fs         = require('fs');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname)));
 app.use(express.json());
+
+// ── EU Sanctions list — loaded once at startup ────────────────────────────────
+let _sanctionsNames = null; // array of normalized strings
+function loadSanctions() {
+  try {
+    const raw  = fs.readFileSync(path.join(__dirname, 'sanctions.json'), 'utf8');
+    const data = JSON.parse(raw);
+    _sanctionsNames = data.names || [];
+    console.log(`[Sanctions] Loaded ${_sanctionsNames.length} entries (${data.source || 'EU list'}, ${data.generated || ''})`);
+  } catch(e) {
+    console.warn('[Sanctions] Could not load sanctions.json:', e.message);
+    _sanctionsNames = [];
+  }
+}
+loadSanctions();
+
+function normalizeName(s) {
+  if (!s) return '';
+  // Lowercase, remove diacritics, keep alphanumeric + spaces
+  s = s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return s.replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+// Fuzzy token-based match: returns matching sanctions entries for a given name
+function checkSanctions(name) {
+  if (!_sanctionsNames || !_sanctionsNames.length || !name) return [];
+  const norm   = normalizeName(name);
+  if (norm.length < 3) return [];
+  const tokens = norm.split(' ').filter(t => t.length >= 3);
+  if (!tokens.length) return [];
+
+  const matches = [];
+  // Check each sanctions entry
+  for (const entry of _sanctionsNames) {
+    // Full name substring match (normalized name fully contained in entry or entry fully in name)
+    if (entry === norm || entry.includes(norm) || norm.includes(entry)) {
+      // Make sure the matching part is at least 5 chars to avoid false positives
+      const matched = entry === norm ? norm : (entry.includes(norm) ? norm : entry);
+      if (matched.length >= 5) { matches.push(entry); if (matches.length >= 5) break; continue; }
+    }
+    // Token match: if ALL significant tokens from the query appear in the sanctions entry
+    // (allows for variations in name order/middle names)
+    const sigTokens = tokens.filter(t => t.length >= 4 &&
+      !['van','von','den','der','bin','bint','abu','ibn','the','and'].includes(t));
+    if (sigTokens.length >= 2) {
+      const allMatch = sigTokens.every(t => entry.includes(t));
+      if (allMatch) { matches.push(entry); if (matches.length >= 5) break; }
+    }
+  }
+  return matches;
+}
 
 // ── Firebase config (served to frontend) ─────────────────────────────────────
 app.get('/api/firebase-config', (req, res) => {
@@ -356,6 +408,23 @@ function committeeEmailHTML(clientName, memo, referredBy) {
 </table>
 </body></html>`;
 }
+
+// ── POST /api/check-sanctions ─────────────────────────────────────────────────
+// Accepts { names: ['string', ...] } — array of names to check (client name, UBOs, etc.)
+// Returns { hits: [{ name, matches }] } for any name that hits the sanctions list
+app.post('/api/check-sanctions', (req, res) => {
+  const { names } = req.body;
+  if (!Array.isArray(names)) return res.status(400).json({ error: 'names must be an array' });
+  const hits = [];
+  for (const name of names) {
+    if (!name || typeof name !== 'string') continue;
+    const matches = checkSanctions(name.trim());
+    if (matches.length) {
+      hits.push({ name: name.trim(), matches: matches.slice(0, 3) });
+    }
+  }
+  res.json({ hits, checked: names.length, listSize: _sanctionsNames?.length || 0 });
+});
 
 // ── Catch-all → SPA ──────────────────────────────────────────────────────────
 app.get('*', (req, res) => {

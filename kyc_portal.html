@@ -2732,15 +2732,71 @@ window.switchView = function(v) {
 // ===== Firestore: Lawyer dashboard =====
 let _unsubDash = null;
 
+// Sanctions check cache: submissionId → { hits: [...] }
+const _sanctionsCache = {};
+
+async function runSanctionsCheck(subs) {
+  // Collect all names we haven't checked yet
+  const toCheck = []; // { subId, name }
+  for (const sub of subs) {
+    if (_sanctionsCache[sub.id]) continue; // already checked
+    const names = [];
+    if (sub.clientName) names.push(sub.clientName);
+    // UBO names stored in ubos array or ubo* fields
+    if (Array.isArray(sub.ubos)) sub.ubos.forEach(u => u.name && names.push(u.name));
+    if (sub.uboName)  names.push(sub.uboName);
+    if (sub.uboName2) names.push(sub.uboName2);
+    if (sub.uboName3) names.push(sub.uboName3);
+    // Contact person / directors
+    if (sub.formData?.contact) names.push(sub.formData.contact);
+    if (sub.director1) names.push(sub.director1);
+    if (sub.director2) names.push(sub.director2);
+    // Store pending
+    toCheck.push({ subId: sub.id, names });
+  }
+  if (!toCheck.length) return;
+
+  // Batch all names into one API call
+  const allNames = [...new Set(toCheck.flatMap(t => t.names).filter(Boolean))];
+  if (!allNames.length) {
+    toCheck.forEach(t => { _sanctionsCache[t.subId] = { hits: [] }; });
+    return;
+  }
+
+  try {
+    const res  = await fetch('/api/check-sanctions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ names: allNames }),
+    });
+    const data = await res.json();
+    const hitMap = {};
+    (data.hits || []).forEach(h => { hitMap[h.name.toLowerCase()] = h; });
+
+    for (const entry of toCheck) {
+      const hits = entry.names
+        .map(n => hitMap[n.toLowerCase()])
+        .filter(Boolean);
+      _sanctionsCache[entry.subId] = { hits };
+    }
+  } catch(e) {
+    console.warn('Sanctions check failed:', e.message);
+    toCheck.forEach(t => { _sanctionsCache[t.subId] = { hits: [] }; });
+  }
+}
+
 function loadDashboard() {
   if (!db) return;
   if (_unsubDash) _unsubDash();
   _unsubDash = db.collection('submissions')
     .orderBy('createdAt', 'desc')
-    .onSnapshot(snap => {
+    .onSnapshot(async snap => {
       const subs = [];
       snap.forEach(doc => subs.push({ id: doc.id, ...doc.data() }));
+      // Render immediately (may not have sanctions data yet)
       renderDashboard(subs);
+      // Run sanctions check in background, then re-render
+      await runSanctionsCheck(subs);
+      renderDashboard(subs); // re-render with sanctions data
     }, err => console.error('Firestore:', err));
 }
 
@@ -2787,17 +2843,27 @@ function renderDashboard(subs) {
       ? `<button class="committee-btn" onclick="event.stopPropagation();openCommitteeModal('${name}','${email}','${sub.clientType||'natural'}','${sub.risk||'medium'}','${service}','${workDesc}')">⚑ Refer to committee</button>`
       : '';
     const committeeFlag = needsCommittee ? `<div class="committee-flag">⚑ Committee required</div>` : '';
-    const assignedMember = TEAM_MEMBERS.find(m => m.id === sub.assignedTo);
-    const assignedBadge  = assignedMember ? `<div style="font-size:11px;color:var(--text-3);margin-top:2px;">Assigned: ${_esc(assignedMember.name)}</div>` : '';
+    const assignedMember  = TEAM_MEMBERS.find(m => m.id === sub.assignedTo);
+    const assignedBadge   = assignedMember ? `<div style="font-size:11px;color:var(--text-3);margin-top:2px;">Assigned: ${_esc(assignedMember.name)}</div>` : '';
+    const sanctionsResult = _sanctionsCache[sub.id];
+    const sanctionsHits   = sanctionsResult?.hits || [];
+    const hasSanctions    = sanctionsHits.length > 0;
 
     return `
-      <tr onclick="toggleDetail('${dId}')" style="cursor:pointer">
-        <td><strong>${name}</strong>${committeeFlag}${assignedBadge}<div style="font-size:11px;color:var(--text-3)">${sub.clientType === 'entity' ? 'Legal entity' : 'Natural person'}</div></td>
+      <tr onclick="toggleDetail('${dId}')" style="cursor:pointer${hasSanctions ? ';background:#fff5f5;' : ''}">
+        <td>
+          ${hasSanctions ? `<div style="display:inline-flex;align-items:center;gap:5px;background:#b91c1c;color:white;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;letter-spacing:0.4px;margin-bottom:4px;">⚠ SANCTIONS HIT</div><br>` : ''}
+          <strong>${name}</strong>${committeeFlag}${assignedBadge}
+          <div style="font-size:11px;color:var(--text-3)">${sub.clientType === 'entity' ? 'Legal entity' : 'Natural person'}</div>
+        </td>
         <td><span class="badge badge-gray">${sub.clientType === 'entity' ? 'Entity' : 'Natural'}</span></td>
         <td>${service}</td>
         <td><span class="badge ${stBadge}">${stLbl}</span></td>
         <td><div class="doc-match">${pips}<div style="font-size:11px;color:var(--text-3);margin-left:4px">${docCount}/${totalDocs}</div></div></td>
-        <td><div class="risk-light ${riskCls}"><div class="risk-dot"></div>${riskLbl}</div></td>
+        <td>
+          <div class="risk-light ${hasSanctions ? 'risk-high' : riskCls}"><div class="risk-dot"></div>${hasSanctions ? 'High' : riskLbl}</div>
+          ${hasSanctions ? `<div style="font-size:10px;font-weight:700;color:#b91c1c;margin-top:3px;white-space:nowrap;">⚠ Sanctions hit</div>` : ''}
+        </td>
         <td>—</td>
         <td style="color:var(--text-3);font-size:12px">${ago}</td>
         <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
@@ -2822,6 +2888,30 @@ function renderDashboard(subs) {
             <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:6px;">Submitted</div><div>${sub.createdAt ? sub.createdAt.toDate().toLocaleDateString('nl-NL') : '—'}</div><div style="color:var(--text-3)">${docCount}/${totalDocs} docs uploaded</div></div>
             <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:6px;">Assigned to</div><div>${assignedMember ? _esc(assignedMember.name) : '<span style="color:var(--text-3)">Unassigned</span>'}</div>${assignedMember ? `<div style="color:var(--text-3)">${_esc(assignedMember.role)}</div>` : ''}</div>
           </div>
+          ${hasSanctions ? `
+          <div style="border:2px solid #b91c1c;border-radius:10px;padding:18px 20px;font-size:13px;background:#fff5f5;margin-bottom:14px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <span style="font-size:15px;">⚠</span>
+              <span style="font-size:13px;font-weight:700;color:#b91c1c;">EU Consolidated Sanctions List — potential match detected</span>
+            </div>
+            <div style="font-size:12px;color:#7f1d1d;line-height:1.6;margin-bottom:12px;">
+              One or more names associated with this file appear on the <strong>EU Consolidated Financial Sanctions List</strong> (updated 20/03/2026).
+              This is a preliminary match and requires manual verification before any engagement may proceed.
+              Under Art. 3 Regulation (EU) 2580/2001 and the applicable sanctions regime, proceeding without verification may constitute a criminal offence.
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              ${sanctionsHits.map(hit => `
+              <div style="background:white;border:1px solid #fca5a5;border-radius:8px;padding:12px 14px;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#b91c1c;margin-bottom:4px;">Searched name</div>
+                <div style="font-size:13px;font-weight:600;color:#0e1624;margin-bottom:8px;">${_esc(hit.name)}</div>
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#b91c1c;margin-bottom:4px;">Matching sanctions entries</div>
+                ${hit.matches.map(m => `<div style="font-size:12px;color:#7f1d1d;font-family:monospace;padding:3px 0;">${_esc(m)}</div>`).join('')}
+              </div>`).join('')}
+            </div>
+            <div style="margin-top:12px;padding-top:10px;border-top:1px solid #fca5a5;font-size:11px;color:#9b1c1c;">
+              Source: EU Consolidated Financial Sanctions List — DG FISMA — 20/03/2026 · ${_sanctionsCache[sub.id]?.hits?.length || 0} name(s) matched · Do not proceed without compliance sign-off
+            </div>
+          </div>` : ''}
           ${sub.scopeOfWork ? `
           <div style="border:1px solid var(--border);border-radius:10px;padding:16px 18px;font-size:13px;">
             <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:8px;">Scope of work</div>
@@ -2906,9 +2996,13 @@ window.submitForm = async function() {
   if (db) {
     (async () => {
       try {
+        const uboRaw = document.getElementById('f-ubo1')?.value?.trim() || '';
+        // Extract just the name part from "Full name, nationality, % held"
+        const uboName = uboRaw.split(',')[0].trim();
         const subRef = await db.collection('submissions').add({
           clientType, clientName: fd.name, email: fd.email, service: fd.service,
           formData: fd, status, risk, docs: {},
+          uboName:               uboName || '',
           scopeOfWork:           window._scopeOfWork           || '',
           scopeConfirmed:        window._scopeConfirmed        ?? null,
           scopeComments:         window._scopeComments         || '',
