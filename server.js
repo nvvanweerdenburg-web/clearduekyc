@@ -1,6 +1,7 @@
-const express  = require('express');
-const path     = require('path');
+const express    = require('express');
+const path       = require('path');
 const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -21,16 +22,54 @@ app.get('/api/firebase-config', (req, res) => {
   });
 });
 
-// ── Nodemailer transporter (Gmail) ────────────────────────────────────────────
-function getTransporter() {
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
-  if (!user || !pass) return null;
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user, pass },
-  });
+// ── Email sending — Resend preferred, Gmail fallback ─────────────────────────
+// Priority: RESEND_API_KEY → GMAIL_USER+GMAIL_APP_PASSWORD → log only
+
+async function sendEmail({ to, subject, html }) {
+  // 1. Try Resend
+  if (process.env.RESEND_API_KEY) {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const from   = process.env.RESEND_FROM || 'ClearDue Legal <onboarding@resend.dev>';
+    const result = await resend.emails.send({ from, to, subject, html });
+    if (result.error) throw new Error(result.error.message || JSON.stringify(result.error));
+    console.log(`[Email/Resend] Sent to ${to}: ${subject}`);
+    return;
+  }
+
+  // 2. Try Gmail
+  if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+    });
+    await transporter.sendMail({
+      from: `ClearDue Legal <${process.env.GMAIL_USER}>`,
+      to, subject, html,
+    });
+    console.log(`[Email/Gmail] Sent to ${to}: ${subject}`);
+    return;
+  }
+
+  // 3. No provider configured
+  console.warn(`[Email] NOT SENT — no email provider configured. Set RESEND_API_KEY or GMAIL_USER+GMAIL_APP_PASSWORD in Railway Variables.`);
+  console.warn(`[Email] Would have sent to: ${to} | Subject: ${subject}`);
+  throw new Error('No email provider configured. Add RESEND_API_KEY to Railway Variables.');
 }
+
+// ── GET /api/email-status — diagnostic ───────────────────────────────────────
+app.get('/api/email-status', (req, res) => {
+  const hasResend = !!process.env.RESEND_API_KEY;
+  const hasGmail  = !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
+  res.json({
+    provider:    hasResend ? 'resend' : hasGmail ? 'gmail' : 'none',
+    resend:      hasResend,
+    gmail:       hasGmail,
+    configured:  hasResend || hasGmail,
+    message:     hasResend ? '✓ Resend configured'
+               : hasGmail  ? '✓ Gmail configured'
+               :             '✗ No email provider — add RESEND_API_KEY to Railway Variables',
+  });
+});
 
 // ── Email templates ───────────────────────────────────────────────────────────
 function reminderEmailHTML(clientName) {
@@ -109,20 +148,8 @@ function engagementLetterEmailHTML(clientName, letterHTML) {
 app.post('/api/send-reminder', async (req, res) => {
   const { to, clientName } = req.body;
   if (!to) return res.status(400).json({ error: 'Missing recipient email' });
-
-  const t = getTransporter();
-  if (!t) {
-    console.log(`[Email] GMAIL not configured — skipped reminder to: ${to}`);
-    return res.json({ ok: true, skipped: true });
-  }
   try {
-    await t.sendMail({
-      from:    `ClearDue Legal <${process.env.GMAIL_USER}>`,
-      to,
-      subject: 'Action required: KYC documents outstanding — ClearDue Legal B.V.',
-      html:    reminderEmailHTML(clientName),
-    });
-    console.log(`[Email] Reminder sent to ${to}`);
+    await sendEmail({ to, subject: 'Action required: KYC documents outstanding — ClearDue Legal B.V.', html: reminderEmailHTML(clientName) });
     res.json({ ok: true });
   } catch (e) {
     console.error('[Email] Reminder failed:', e.message);
@@ -134,20 +161,8 @@ app.post('/api/send-reminder', async (req, res) => {
 app.post('/api/send-engagement-letter', async (req, res) => {
   const { to, clientName, letterHTML } = req.body;
   if (!to) return res.status(400).json({ error: 'Missing recipient email' });
-
-  const t = getTransporter();
-  if (!t) {
-    console.log(`[Email] GMAIL not configured — skipped engagement letter to: ${to}`);
-    return res.json({ ok: true, skipped: true });
-  }
   try {
-    await t.sendMail({
-      from:    `ClearDue Legal <${process.env.GMAIL_USER}>`,
-      to,
-      subject: 'Your engagement letter — ClearDue Legal B.V.',
-      html:    engagementLetterEmailHTML(clientName, letterHTML || ''),
-    });
-    console.log(`[Email] Engagement letter sent to ${to}`);
+    await sendEmail({ to, subject: 'Your engagement letter — ClearDue Legal B.V.', html: engagementLetterEmailHTML(clientName, letterHTML || '') });
     res.json({ ok: true });
   } catch (e) {
     console.error('[Email] Engagement letter failed:', e.message);
@@ -159,21 +174,9 @@ app.post('/api/send-engagement-letter', async (req, res) => {
 app.post('/api/invite-client', async (req, res) => {
   const { to, invitedBy } = req.body;
   if (!to) return res.status(400).json({ error: 'Missing recipient email' });
-
   const appUrl = process.env.APP_URL || 'https://clearduekyc-production.up.railway.app';
-  const t = getTransporter();
-  if (!t) {
-    console.log(`[Email] GMAIL not configured — skipped invite to: ${to}`);
-    return res.json({ ok: true, skipped: true });
-  }
   try {
-    await t.sendMail({
-      from:    `ClearDue Legal <${process.env.GMAIL_USER}>`,
-      to,
-      subject: 'You have been invited to complete your KYC — ClearDue Legal B.V.',
-      html:    inviteEmailHTML(to, invitedBy, appUrl),
-    });
-    console.log(`[Email] Invite sent to ${to}`);
+    await sendEmail({ to, subject: 'You have been invited to complete your KYC — ClearDue Legal B.V.', html: inviteEmailHTML(to, invitedBy, appUrl) });
     res.json({ ok: true });
   } catch (e) {
     console.error('[Email] Invite failed:', e.message);
@@ -229,20 +232,8 @@ function inviteEmailHTML(to, invitedBy, appUrl) {
 app.post('/api/send-committee', async (req, res) => {
   const { to, clientName, memo, referredBy } = req.body;
   if (!to) return res.status(400).json({ error: 'Missing recipient email' });
-
-  const t = getTransporter();
-  if (!t) {
-    console.log(`[Email] GMAIL not configured — skipped committee referral to: ${to}`);
-    return res.json({ ok: true, skipped: true });
-  }
   try {
-    await t.sendMail({
-      from:    `ClearDue Legal <${process.env.GMAIL_USER}>`,
-      to,
-      subject: `[COMMITTEE REFERRAL] ${clientName} — ClearDue Legal B.V.`,
-      html:    committeeEmailHTML(clientName, memo, referredBy),
-    });
-    console.log(`[Email] Committee referral sent to ${to} for ${clientName}`);
+    await sendEmail({ to, subject: `[COMMITTEE REFERRAL] ${clientName} — ClearDue Legal B.V.`, html: committeeEmailHTML(clientName, memo, referredBy) });
     res.json({ ok: true });
   } catch (e) {
     console.error('[Email] Committee referral failed:', e.message);
