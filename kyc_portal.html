@@ -1600,6 +1600,20 @@
   </div>
 </div>
 
+<!-- ========== DOCUMENTS MODAL ========== -->
+<div class="modal-overlay" id="docs-modal">
+  <div class="modal-box" style="max-width:560px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="docs-modal-title">Client documents</div>
+        <div class="modal-sub" id="docs-modal-sub">Uploaded by the client</div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('docs-modal').classList.remove('active')">✕</button>
+    </div>
+    <div id="docs-modal-body" style="min-height:80px;"></div>
+  </div>
+</div>
+
 <!-- ========== SCOPE CONFIRMATION MODAL (client) ========== -->
 <div class="modal-overlay" id="scope-confirm-modal">
   <div class="modal-box" style="max-width:560px;">
@@ -3099,16 +3113,52 @@ async function _approveFile(id) {
 }
 
 async function _viewDocs(id) {
-  if (!db || !storage) return;
-  const doc = await db.collection('submissions').doc(id).get();
-  const docs = doc.data()?.docs || {};
-  if (!Object.keys(docs).length) { alert('No documents uploaded for this file.'); return; }
-  const urls = await Promise.all(Object.entries(docs).map(async ([docId, path]) => {
-    const url = await storage.ref(path).getDownloadURL();
-    return `<a href="${url}" target="_blank" style="display:block;margin-bottom:6px;color:var(--brand-mid);font-size:13px;">📄 ${docId}</a>`;
-  }));
-  const win = window.open('', '_blank');
-  win.document.write(`<html><body style="font-family:sans-serif;padding:24px"><h2>Documents — ${doc.data()?.clientName}</h2>${urls.join('')}</body></html>`);
+  if (!db) return;
+  const modal   = document.getElementById('docs-modal');
+  const bodyEl  = document.getElementById('docs-modal-body');
+  const titleEl = document.getElementById('docs-modal-title');
+  const subEl   = document.getElementById('docs-modal-sub');
+  bodyEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-3);font-size:13px;">Loading…</div>';
+  modal.classList.add('active');
+
+  try {
+    const snap = await db.collection('submissions').doc(id).get();
+    const data = snap.data() || {};
+    const docs = data.docs || {};
+    titleEl.textContent = (data.clientName || 'Client') + ' — Documents';
+    subEl.textContent   = Object.keys(docs).length + ' file(s) uploaded';
+
+    if (!Object.keys(docs).length) {
+      bodyEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-3);font-size:13px;">No documents uploaded yet.</div>';
+      return;
+    }
+
+    // Build list — get download URLs if storage is available, otherwise show paths
+    const rows = await Promise.all(Object.entries(docs).map(async ([docId, storagePath]) => {
+      const filename = storagePath.split('/').pop() || docId;
+      let href = null;
+      if (storage) {
+        try { href = await storage.ref(storagePath).getDownloadURL(); } catch(e) { /* access denied or missing */ }
+      }
+      return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:22px;">📄</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(filename)}</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px;">${_esc(docId)}</div>
+        </div>
+        ${href
+          ? `<a href="${href}" target="_blank" rel="noopener"
+               style="flex-shrink:0;font-size:12px;font-weight:600;color:white;background:var(--brand);padding:6px 14px;border-radius:6px;text-decoration:none;">
+               ↓ Open
+             </a>`
+          : `<span style="flex-shrink:0;font-size:12px;color:var(--text-3);">No access</span>`}
+      </div>`;
+    }));
+
+    bodyEl.innerHTML = `<div style="padding:0 2px;">${rows.join('')}</div>`;
+  } catch(e) {
+    bodyEl.innerHTML = `<div style="padding:16px;color:var(--red);font-size:13px;">⚠ Could not load documents: ${_esc(e.message)}</div>`;
+  }
 }
 
 // ===== Firestore: save KYC submission =====
