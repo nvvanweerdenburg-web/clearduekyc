@@ -2032,9 +2032,8 @@ async function sendClientInvite() {
   const errEl   = document.getElementById('invite-error');
   const btn     = document.getElementById('invite-send-btn');
   errEl.textContent = '';
-  if (!email || !email.includes('@')) { errEl.textContent = 'Please enter a valid email address.'; return; }
-  if (!purpose) { errEl.textContent = 'Please select a purpose of engagement.'; return; }
-  if (!scope)   { errEl.textContent = 'Please enter the scope of work — the client must confirm it.'; return; }
+  if (!email || !email.includes('@')) { errEl.textContent = 'Please enter a valid email address.'; errEl.scrollIntoView({ behavior:'smooth', block:'nearest' }); return; }
+  if (!scope)   { errEl.textContent = 'Please enter the scope of work — the client must confirm it.'; errEl.scrollIntoView({ behavior:'smooth', block:'nearest' }); return; }
   btn.textContent = 'Sending…';
   btn.disabled = true;
   try {
