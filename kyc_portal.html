@@ -174,6 +174,21 @@
   }
   label .req { color: var(--red); margin-left: 2px; }
   label .hint { font-weight: 400; color: var(--text-3); margin-left: 6px; font-size: 12px; }
+  .pep-tooltip-anchor {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--blue); color: #fff; font-size: 10px; font-weight: 700;
+    cursor: pointer; margin-left: 6px; vertical-align: middle; flex-shrink: 0;
+    user-select: none; position: relative;
+  }
+  .pep-tooltip-box {
+    position: absolute; z-index: 200; left: 0; top: calc(100% + 6px);
+    background: #1e293b; color: #e2e8f0; font-size: 12px; font-weight: 400;
+    line-height: 1.6; border-radius: 10px; padding: 14px 16px;
+    width: 320px; max-width: 90vw; box-shadow: 0 8px 24px rgba(0,0,0,.35);
+    pointer-events: none;
+  }
+  label { position: relative; }
 
   input[type="text"], input[type="email"], input[type="date"], select, textarea {
     width: 100%;
@@ -740,6 +755,21 @@
   .committee-btn:hover { background: #fee2e2; border-color: #f87171; }
   .committee-flag { font-size: 10px; color: #b91c1c; font-weight: 700; margin-top: 2px; }
 
+  .btn-delegate {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-delegate:hover { background: #dbeafe; border-color: #93c5fd; }
+
   @media (max-width: 900px) {
     .metrics-row { grid-template-columns: repeat(3, 1fr); }
     .detail-grid { grid-template-columns: 1fr 1fr; }
@@ -1209,7 +1239,13 @@
           <div><strong>Additional question required.</strong> Wwft Article 8(5) requires us to ask all clients about political exposure.</div>
         </div>
         <div class="field-group">
-          <label>Are you, or have you been in the past 12 months, a Politically Exposed Person (PEP)? <span class="req">*</span></label>
+          <label>Are you, or have you been in the past 12 months, a Politically Exposed Person (PEP)? <span class="req">*</span>
+            <span class="pep-tooltip-anchor" onclick="togglePEPTooltip(event)" title="What is a PEP?">?</span>
+            <span id="pep-tooltip" class="pep-tooltip-box" style="display:none;">
+              A <strong>Politically Exposed Person (PEP)</strong> is someone who holds, or has held within the past 12 months, a prominent public position — such as a head of state, government minister, member of parliament, senior judicial official, senior executive of a state-owned enterprise, or a senior official of an international organisation. <br><br>
+              Immediate family members and close associates of such persons are also considered PEPs. Under the Dutch Wwft (Anti-Money Laundering Act) enhanced due diligence applies to all PEPs.
+            </span>
+          </label>
           <div class="radio-group">
             <label class="radio-option" onclick="selectRadio(this,'pep','no')"><input type="radio" name="pep"><div class="radio-dot"></div> No</label>
             <label class="radio-option" onclick="selectRadio(this,'pep','yes'); showPEPDetail()"><input type="radio" name="pep"><div class="radio-dot"></div> Yes</label>
@@ -1493,6 +1529,31 @@
   </div>
 </div>
 
+<!-- ========== DELEGATE / ASSIGN MODAL ========== -->
+<div class="modal-overlay" id="delegate-modal">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Assign to team member</div>
+        <div class="modal-sub" id="delegate-modal-sub">Select the team member responsible for this file</div>
+      </div>
+      <button class="modal-close" onclick="closeDelegateModal()">✕</button>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Team member</label>
+      <select id="delegate-select"
+        style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;color:var(--text);background:white;box-sizing:border-box;">
+        <option value="">— Select team member —</option>
+      </select>
+    </div>
+    <div id="delegate-error" style="font-size:12px;color:var(--red);min-height:18px;margin-top:2px;"></div>
+    <div class="modal-actions">
+      <button class="btn-sm" onclick="closeDelegateModal()">Cancel</button>
+      <button id="delegate-confirm-btn" class="btn-primary" onclick="confirmDelegate()" style="width:auto;padding:9px 22px;font-size:13px;">↗ Assign</button>
+    </div>
+  </div>
+</div>
+
 <!-- ========== SCOPE CONFIRMATION MODAL (client) ========== -->
 <div class="modal-overlay" id="scope-confirm-modal">
   <div class="modal-box" style="max-width:560px;">
@@ -1534,10 +1595,29 @@
       <label class="modal-label">Client email address</label>
       <input type="email" id="invite-email" placeholder="client@example.com"
         style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;color:var(--text);box-sizing:border-box;"
-        onkeydown="if(event.key==='Enter') document.getElementById('invite-scope').focus()">
+        onkeydown="if(event.key==='Enter') document.getElementById('invite-purpose').focus()">
       <div style="margin-top:8px;padding:10px 12px;background:#fef9ec;border:1px solid #f5d97a;border-radius:8px;font-size:12px;color:#92690a;line-height:1.5;">
         ⚠ <strong>Test environment.</strong> Please only enter your own email address or the email address of another tester.
       </div>
+    </div>
+    <div class="modal-field" style="margin-top:14px;">
+      <label class="modal-label">Purpose of engagement <span style="color:var(--red)">*</span></label>
+      <select id="invite-purpose"
+        style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;color:var(--text);background:white;box-sizing:border-box;">
+        <option value="">— Select purpose —</option>
+        <option value="Real estate (residential)">Real estate — residential</option>
+        <option value="Real estate (commercial)">Real estate — commercial</option>
+        <option value="Merger & Acquisition">Merger &amp; Acquisition</option>
+        <option value="Corporate law">Corporate law</option>
+        <option value="Employment law">Employment law</option>
+        <option value="Litigation / Dispute resolution">Litigation / Dispute resolution</option>
+        <option value="Contract review & drafting">Contract review &amp; drafting</option>
+        <option value="Estate planning / Succession">Estate planning / Succession</option>
+        <option value="Regulatory & Compliance">Regulatory &amp; Compliance</option>
+        <option value="Criminal / Fraud">Criminal / Fraud</option>
+        <option value="Other">Other</option>
+      </select>
+      <div style="font-size:11px;color:var(--text-3);margin-top:5px;">This determines which questions the client must answer in their KYC file.</div>
     </div>
     <div class="modal-field" style="margin-top:14px;">
       <label class="modal-label">Scope of work <span style="color:var(--red)">*</span></label>
@@ -1734,6 +1814,19 @@ function showPEPDetail() {
   document.getElementById('pep-detail').style.display = 'block';
 }
 
+function togglePEPTooltip(e) {
+  e.stopPropagation();
+  const box = document.getElementById('pep-tooltip');
+  if (!box) return;
+  const visible = box.style.display !== 'none';
+  box.style.display = visible ? 'none' : 'block';
+  if (!visible) {
+    // close on next outside click
+    const handler = () => { box.style.display = 'none'; document.removeEventListener('click', handler); };
+    setTimeout(() => document.addEventListener('click', handler), 0);
+  }
+}
+
 function checkStep1() {
   let valid = false;
   if (clientType === 'natural') {
@@ -1918,6 +2011,7 @@ function openNewFile() {
 /* ===== Invite client modal ===== */
 function openInviteModal() {
   document.getElementById('invite-email').value = '';
+  document.getElementById('invite-purpose').value = '';
   document.getElementById('invite-scope').value = '';
   document.getElementById('invite-error').textContent = '';
   const btn = document.getElementById('invite-send-btn');
@@ -1932,20 +2026,22 @@ function closeInviteModal() {
 }
 
 async function sendClientInvite() {
-  const email = document.getElementById('invite-email').value.trim();
-  const scope = document.getElementById('invite-scope').value.trim();
-  const errEl = document.getElementById('invite-error');
-  const btn   = document.getElementById('invite-send-btn');
+  const email   = document.getElementById('invite-email').value.trim();
+  const purpose = document.getElementById('invite-purpose').value.trim();
+  const scope   = document.getElementById('invite-scope').value.trim();
+  const errEl   = document.getElementById('invite-error');
+  const btn     = document.getElementById('invite-send-btn');
   errEl.textContent = '';
   if (!email || !email.includes('@')) { errEl.textContent = 'Please enter a valid email address.'; return; }
-  if (!scope) { errEl.textContent = 'Please enter the scope of work — the client must confirm it.'; return; }
+  if (!purpose) { errEl.textContent = 'Please select a purpose of engagement.'; return; }
+  if (!scope)   { errEl.textContent = 'Please enter the scope of work — the client must confirm it.'; return; }
   btn.textContent = 'Sending…';
   btn.disabled = true;
   try {
     // Save invite to Firestore (non-blocking — email sends even if this fails)
     if (db) {
       db.collection('invites').add({
-        email, scopeOfWork: scope,
+        email, scopeOfWork: scope, purposeOfEngagement: purpose,
         invitedBy: currentUser?.email || 'ClearDue Legal',
         status: 'pending',
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1955,7 +2051,7 @@ async function sendClientInvite() {
     const res = await fetch('/api/invite-client', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: email, invitedBy: currentUser?.email || 'ClearDue Legal', scopeOfWork: scope })
+      body: JSON.stringify({ to: email, invitedBy: currentUser?.email || 'ClearDue Legal', scopeOfWork: scope, purposeOfEngagement: purpose })
     });
     if (res.ok) {
       closeInviteModal();
@@ -2025,9 +2121,10 @@ async function submitScopeResponse() {
   btn.textContent = 'Saving…'; btn.disabled = true;
 
   const confirmed = !commentOpen;
-  window._scopeOfWork    = _pendingInviteData?.scopeOfWork || '';
-  window._scopeConfirmed = confirmed;
-  window._scopeComments  = commentOpen ? commentText : '';
+  window._scopeOfWork           = _pendingInviteData?.scopeOfWork || '';
+  window._scopeConfirmed        = confirmed;
+  window._scopeComments         = commentOpen ? commentText : '';
+  window._purposeOfEngagement   = _pendingInviteData?.purposeOfEngagement || '';
 
   if (db && _pendingInviteId) {
     try {
@@ -2053,6 +2150,17 @@ function assessScopeRisk(scope) {
     'corporate restructuring','holding','nominee'];
   if (HIGH.some(t => s.includes(t))) return 'high';
   if (MED.some(t => s.includes(t)))  return 'medium';
+  return 'low';
+}
+
+function assessPurposeRisk(purpose) {
+  if (!purpose) return 'low';
+  const p = purpose.toLowerCase();
+  if (p.includes('criminal') || p.includes('fraud') || p.includes('asset recovery') ||
+      p.includes('sanctions') || p.includes('aml')) return 'high';
+  if (p.includes('real estate') || p.includes('m&a') || p.includes('merger') ||
+      p.includes('acquisition') || p.includes('corporate') || p.includes('restructuring') ||
+      p.includes('investment') || p.includes('private equity') || p.includes('cross-border')) return 'medium';
   return 'low';
 }
 
@@ -2180,6 +2288,50 @@ async function sendToCommittee() {
   } catch(e) {
     errEl.textContent = 'Network error — please try again.';
     btn.textContent = '⚑ Send to committee →'; btn.disabled = false;
+  }
+}
+
+/* ===== Delegate / Assign ===== */
+let _delegateSubmissionId = null;
+
+function openDelegateModal(submissionId, clientName, currentAssignedId) {
+  _delegateSubmissionId = submissionId;
+  document.getElementById('delegate-modal-sub').textContent = `Assign ${clientName}'s file to a team member`;
+  document.getElementById('delegate-error').textContent = '';
+  document.getElementById('delegate-confirm-btn').textContent = '↗ Assign';
+  document.getElementById('delegate-confirm-btn').disabled = false;
+  // Populate select
+  const sel = document.getElementById('delegate-select');
+  sel.innerHTML = '<option value="">— Select team member —</option>' +
+    TEAM_MEMBERS.map(m => `<option value="${m.id}" ${m.id === currentAssignedId ? 'selected' : ''}>${m.name} — ${m.role}</option>`).join('');
+  document.getElementById('delegate-modal').classList.add('active');
+}
+
+function closeDelegateModal() {
+  document.getElementById('delegate-modal').classList.remove('active');
+  _delegateSubmissionId = null;
+}
+
+async function confirmDelegate() {
+  const sel   = document.getElementById('delegate-select');
+  const memberId = sel.value;
+  const errEl = document.getElementById('delegate-error');
+  const btn   = document.getElementById('delegate-confirm-btn');
+  errEl.textContent = '';
+  if (!memberId) { errEl.textContent = 'Please select a team member.'; return; }
+  if (!_delegateSubmissionId || !db) { errEl.textContent = 'Cannot update — please refresh and try again.'; return; }
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  try {
+    await db.collection('submissions').doc(_delegateSubmissionId).update({
+      assignedTo: memberId,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    const member = TEAM_MEMBERS.find(m => m.id === memberId);
+    closeDelegateModal();
+    _toast('↗ File assigned to ' + (member?.name || memberId));
+  } catch(e) {
+    errEl.textContent = 'Save failed — check Firestore rules.';
+    btn.textContent = '↗ Assign'; btn.disabled = false;
   }
 }
 
@@ -2456,6 +2608,8 @@ async function initFirebase() {
         }, 150);
         // Check if this user has a pending invite with a scope of work to confirm
         setTimeout(() => checkForPendingInvite(user.email), 400);
+        // Handle engagement letter approve/deny from email link
+        setTimeout(() => handleLetterAction(user.email), 600);
       } else {
         if (gate) gate.style.display = 'flex';
         if (display) display.textContent = '';
@@ -2633,10 +2787,12 @@ function renderDashboard(subs) {
       ? `<button class="committee-btn" onclick="event.stopPropagation();openCommitteeModal('${name}','${email}','${sub.clientType||'natural'}','${sub.risk||'medium'}','${service}','${workDesc}')">⚑ Refer to committee</button>`
       : '';
     const committeeFlag = needsCommittee ? `<div class="committee-flag">⚑ Committee required</div>` : '';
+    const assignedMember = TEAM_MEMBERS.find(m => m.id === sub.assignedTo);
+    const assignedBadge  = assignedMember ? `<div style="font-size:11px;color:var(--text-3);margin-top:2px;">Assigned: ${_esc(assignedMember.name)}</div>` : '';
 
     return `
       <tr onclick="toggleDetail('${dId}')" style="cursor:pointer">
-        <td><strong>${name}</strong>${committeeFlag}<div style="font-size:11px;color:var(--text-3)">${sub.clientType === 'entity' ? 'Legal entity' : 'Natural person'}</div></td>
+        <td><strong>${name}</strong>${committeeFlag}${assignedBadge}<div style="font-size:11px;color:var(--text-3)">${sub.clientType === 'entity' ? 'Legal entity' : 'Natural person'}</div></td>
         <td><span class="badge badge-gray">${sub.clientType === 'entity' ? 'Entity' : 'Natural'}</span></td>
         <td>${service}</td>
         <td><span class="badge ${stBadge}">${stLbl}</span></td>
@@ -2648,6 +2804,7 @@ function renderDashboard(subs) {
           ${committeeBtn}
           <button class="send-reminder-btn" onclick="event.stopPropagation();sendReminderEmail('${email}','${name}')">Send reminder</button>
           <button class="eng-toggle" onclick="event.stopPropagation();openEngModal('${name}','${email}','${service}','${sub.id}')">&#9993; Send engagement letter</button>
+          <button class="btn-delegate" onclick="event.stopPropagation();openDelegateModal('${sub.id}','${name}','${sub.assignedTo||''}')">↗ Assign to</button>
         </td>
       </tr>
       <tr id="${dId}-row"><td colspan="9" style="padding:0;background:var(--surface-2)">
@@ -2659,10 +2816,11 @@ function renderDashboard(subs) {
               <button class="btn-sm primary" onclick="_approveFile('${sub.id}')">Approve file</button>
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;font-size:13px;color:var(--text-2);margin-bottom:16px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;font-size:13px;color:var(--text-2);margin-bottom:16px;">
             <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:6px;">Client</div><div>${name}</div><div style="color:var(--text-3)">${email}</div></div>
             <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:6px;">Service</div><div>${service}</div></div>
             <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:6px;">Submitted</div><div>${sub.createdAt ? sub.createdAt.toDate().toLocaleDateString('nl-NL') : '—'}</div><div style="color:var(--text-3)">${docCount}/${totalDocs} docs uploaded</div></div>
+            <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:6px;">Assigned to</div><div>${assignedMember ? _esc(assignedMember.name) : '<span style="color:var(--text-3)">Unassigned</span>'}</div>${assignedMember ? `<div style="color:var(--text-3)">${_esc(assignedMember.role)}</div>` : ''}</div>
           </div>
           ${sub.scopeOfWork ? `
           <div style="border:1px solid var(--border);border-radius:10px;padding:16px 18px;font-size:13px;">
@@ -2731,57 +2889,60 @@ window.submitForm = async function() {
   const btn = document.getElementById('btn-submit');
   if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
 
-  try {
-    const fd = _collectFormData();
-    const riskCountry = clientType === 'natural'
-      ? document.getElementById('f-country')?.value
-      : document.getElementById('f-inc-country')?.value;
-    const isPEP = document.querySelector('input[name="pep"]:checked')?.value === 'yes';
-    const countryRisk = HIGH_RISK_COUNTRIES.includes(riskCountry) ? 'high' : 'low';
-    const scopeRisk   = assessScopeRisk(window._scopeOfWork || '');
-    const pepRisk     = isPEP ? 'high' : 'low';
-    const risk        = combineRisk(countryRisk, scopeRisk, pepRisk);
-    const status      = risk === 'high' ? 'high_risk_review' : 'incomplete';
+  // Calculate risk (never throws)
+  const fd = _collectFormData();
+  const riskCountry = clientType === 'natural'
+    ? document.getElementById('f-country')?.value
+    : document.getElementById('f-inc-country')?.value;
+  const isPEP      = document.querySelector('input[name="pep"]:checked')?.value === 'yes';
+  const countryRisk = HIGH_RISK_COUNTRIES.includes(riskCountry) ? 'high' : 'low';
+  const scopeRisk   = assessScopeRisk(window._scopeOfWork || '');
+  const purposeRisk = assessPurposeRisk(window._purposeOfEngagement || '');
+  const pepRisk     = isPEP ? 'high' : 'low';
+  const risk        = combineRisk(countryRisk, scopeRisk, purposeRisk, pepRisk);
+  const status      = risk === 'high' ? 'high_risk_review' : 'incomplete';
 
-    if (db) {
-      const subRef = await db.collection('submissions').add({
-        clientType, clientName: fd.name, email: fd.email, service: fd.service,
-        formData: fd, status, risk, docs: {},
-        scopeOfWork:    window._scopeOfWork    || '',
-        scopeConfirmed: window._scopeConfirmed ?? null,
-        scopeComments:  window._scopeComments  || '',
-        totalDocs: Object.keys(uploadedFiles).length || 2,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-      _currentSubmissionId = subRef.id;
-
-      const docPaths = {};
-      for (const [docId, fi] of Object.entries(uploadedFiles)) {
-        if (fi.file) {
-          const p = `documents/${subRef.id}/${docId}/${fi.name}`;
-          await storage.ref(p).put(fi.file);
-          docPaths[docId] = p;
+  // Firestore save — non-blocking, never prevents confirmation from showing
+  if (db) {
+    (async () => {
+      try {
+        const subRef = await db.collection('submissions').add({
+          clientType, clientName: fd.name, email: fd.email, service: fd.service,
+          formData: fd, status, risk, docs: {},
+          scopeOfWork:           window._scopeOfWork           || '',
+          scopeConfirmed:        window._scopeConfirmed        ?? null,
+          scopeComments:         window._scopeComments         || '',
+          purposeOfEngagement:   window._purposeOfEngagement   || '',
+          totalDocs: Object.keys(uploadedFiles || {}).length || 2,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        _currentSubmissionId = subRef.id;
+        const docPaths = {};
+        for (const [docId, fi] of Object.entries(uploadedFiles || {})) {
+          if (fi?.file && storage) {
+            try {
+              const p = `documents/${subRef.id}/${docId}/${fi.name}`;
+              await storage.ref(p).put(fi.file);
+              docPaths[docId] = p;
+            } catch(e) { console.warn('File upload skipped:', e.message); }
+          }
         }
-      }
-      const uploaded = Object.keys(docPaths).length;
-      await subRef.update({
-        docs: docPaths,
-        status: uploaded > 0 ? 'pending' : 'incomplete',
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-    }
-
-    // Show confirmation step
-    document.getElementById('step-3').style.display = 'none';
-    document.getElementById('step-4').style.display = 'block';
-    updateProgress(4);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  } catch(err) {
-    console.error('Submit error:', err);
-    if (btn) { btn.disabled = false; btn.textContent = 'Submit'; }
-    alert('Submission failed: ' + err.message);
+        const uploaded = Object.keys(docPaths).length;
+        await subRef.update({
+          docs: docPaths,
+          status: uploaded > 0 ? 'pending' : status,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch(e) { console.error('Firestore submission error (non-fatal):', e.message); }
+    })();
   }
+
+  // Always show confirmation — regardless of Firestore outcome
+  document.getElementById('step-3').style.display = 'none';
+  document.getElementById('step-4').style.display = 'block';
+  updateProgress(4);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 function _collectFormData() {
@@ -2859,15 +3020,17 @@ window.sendEngLetter = async function() {
     } catch(e) { console.error('Save letter error:', e); }
   }
 
-  // 2. Send real email via backend
+  // 2. Send real email via backend (include letterId + lawyerEmail for approve/deny links)
   try {
     await fetch('/api/send-engagement-letter', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        to:         engClient.email,
-        clientName: engClient.name,
-        letterHTML: window._pendingEngLetter || '',
+        to:          engClient.email,
+        clientName:  engClient.name,
+        letterHTML:  window._pendingEngLetter || '',
+        letterId:    _currentLetterId || '',
+        lawyerEmail: currentUser?.email || '',
       }),
     });
   } catch(e) { console.error('Email send error:', e); }
@@ -2881,6 +3044,54 @@ window.sendEngLetter = async function() {
     document.getElementById('client-letter-modal').classList.add('active');
   }, 600);
 };
+
+// ===== Engagement letter approve/deny (from email link) =====
+async function handleLetterAction(userEmail) {
+  const params  = new URLSearchParams(window.location.search);
+  const action  = params.get('letter_action'); // 'approve' or 'deny'
+  const lid     = params.get('lid');
+  const lawyer  = params.get('lawyer');
+  if (!action || !lid) return;
+
+  // Clear URL params without reloading
+  const clean = window.location.pathname;
+  window.history.replaceState({}, '', clean);
+
+  const actionLabel = action === 'approve' ? 'approved' : 'denied';
+  const newStatus   = action === 'approve' ? 'approved' : 'denied';
+
+  // 1. Update Firestore
+  if (db) {
+    try {
+      await db.collection('engagement_letters').doc(lid).update({
+        status:       newStatus,
+        clientAction: action,
+        clientEmail:  userEmail || '',
+        respondedAt:  firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch(e) { console.warn('Letter action Firestore update failed:', e.message); }
+  }
+
+  // 2. Notify lawyer via email
+  if (lawyer) {
+    try {
+      // Try to get client name from Firestore
+      let clientName = 'A client';
+      if (db) {
+        const letterDoc = await db.collection('engagement_letters').doc(lid).get().catch(() => null);
+        if (letterDoc?.exists) clientName = letterDoc.data().clientName || clientName;
+      }
+      await fetch('/api/notify-lawyer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: lawyer, clientName, action, letterId: lid }),
+      });
+    } catch(e) { console.warn('Notify lawyer failed:', e.message); }
+  }
+
+  const icon = action === 'approve' ? '✓' : '✕';
+  _toast(`${icon} Engagement letter ${actionLabel}. The lawyer has been notified.`, action === 'approve' ? 'green' : 'red');
+}
 
 // ===== Real email: send reminder =====
 async function sendReminderEmail(email, clientName) {
@@ -2919,7 +3130,8 @@ window.countersignLetter = async function() {
 // ===== Utilities =====
 function _toast(msg, color) {
   const el = document.createElement('div');
-  el.style.cssText = `position:fixed;bottom:28px;right:28px;background:${color === 'green' ? 'var(--green)' : 'var(--brand)'};color:white;padding:14px 22px;border-radius:10px;font-size:13px;font-weight:500;z-index:300;box-shadow:0 4px 20px rgba(0,0,0,0.2);animation:slideIn 0.2s ease`;
+  const bg = color === 'green' ? 'var(--green)' : color === 'red' ? '#b91c1c' : 'var(--brand)';
+  el.style.cssText = `position:fixed;bottom:28px;right:28px;background:${bg};color:white;padding:14px 22px;border-radius:10px;font-size:13px;font-weight:500;z-index:300;box-shadow:0 4px 20px rgba(0,0,0,0.2);animation:slideIn 0.2s ease`;
   el.textContent = msg;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 4000);

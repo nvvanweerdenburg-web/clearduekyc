@@ -109,7 +109,27 @@ function reminderEmailHTML(clientName) {
 </body></html>`;
 }
 
-function engagementLetterEmailHTML(clientName, letterHTML) {
+function engagementLetterEmailHTML(clientName, letterHTML, letterId, lawyerEmail, appUrl) {
+  const base = appUrl || process.env.APP_URL || 'https://clearduekyc-production.up.railway.app';
+  const approveUrl = `${base}?letter_action=approve&lid=${encodeURIComponent(letterId||'')}&lawyer=${encodeURIComponent(lawyerEmail||'')}`;
+  const denyUrl    = `${base}?letter_action=deny&lid=${encodeURIComponent(letterId||'')}&lawyer=${encodeURIComponent(lawyerEmail||'')}`;
+  const actionButtons = letterId ? `
+        <div style="text-align:center;margin:0 0 28px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          <a href="${approveUrl}"
+            style="display:inline-block;background:#15803d;color:white;text-decoration:none;
+                   padding:13px 32px;border-radius:10px;font-size:14px;font-weight:600;letter-spacing:-0.2px;">
+            ✓ Approve engagement letter
+          </a>
+          <a href="${denyUrl}"
+            style="display:inline-block;background:#b91c1c;color:white;text-decoration:none;
+                   padding:13px 32px;border-radius:10px;font-size:14px;font-weight:600;letter-spacing:-0.2px;">
+            ✕ Deny / request changes
+          </a>
+        </div>` : `
+        <div style="background:#e8f5ee;border:1px solid #6ee7b7;border-radius:8px;padding:14px 18px;margin-bottom:24px;">
+          <p style="font-size:13px;color:#1e7a4e;font-weight:600;margin:0 0 4px;">Next step</p>
+          <p style="font-size:13px;color:#065f46;margin:0;">Log in to the portal to approve or deny this engagement letter.</p>
+        </div>`;
   return `<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#f7f8fa;font-family:'Helvetica Neue',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px;">
@@ -123,16 +143,13 @@ function engagementLetterEmailHTML(clientName, letterHTML) {
         <p style="font-size:15px;font-weight:600;color:#0e1624;margin:0 0 8px;">Dear ${clientName || 'Client'},</p>
         <p style="font-size:14px;color:#4a5568;line-height:1.7;margin:0 0 24px;">
           Please find your engagement letter from <strong>ClearDue Legal B.V.</strong> below.
-          Review it carefully and countersign to confirm your instructions. Work may only begin after
-          KYC is complete and this letter has been countersigned.
+          Review it carefully and use the buttons below to approve or deny.
+          Work may only begin after KYC is complete and this letter has been approved.
         </p>
         <div style="border:1px solid #e2e5ec;border-radius:10px;padding:28px;background:#fafafa;margin-bottom:24px;">
           ${letterHTML}
         </div>
-        <div style="background:#e8f5ee;border:1px solid #6ee7b7;border-radius:8px;padding:14px 18px;margin-bottom:24px;">
-          <p style="font-size:13px;color:#1e7a4e;font-weight:600;margin:0 0 4px;">Next step</p>
-          <p style="font-size:13px;color:#065f46;margin:0;">Reply to this email or log in to the portal to countersign and confirm your instructions.</p>
-        </div>
+        ${actionButtons}
         <p style="font-size:13px;color:#8a94a6;border-top:1px solid #e2e5ec;padding-top:20px;margin:0;">
           ClearDue Legal B.V. &middot; Herengracht 400, 1017 BX Amsterdam &middot; info@cleardue.legal<br>
           KvK: 80123456 &middot; BTW: NL003456789B01
@@ -159,13 +176,57 @@ app.post('/api/send-reminder', async (req, res) => {
 
 // ── POST /api/send-engagement-letter ─────────────────────────────────────────
 app.post('/api/send-engagement-letter', async (req, res) => {
-  const { to, clientName, letterHTML } = req.body;
+  const { to, clientName, letterHTML, letterId, lawyerEmail } = req.body;
   if (!to) return res.status(400).json({ error: 'Missing recipient email' });
+  const appUrl = process.env.APP_URL || 'https://clearduekyc-production.up.railway.app';
   try {
-    await sendEmail({ to, subject: 'Your engagement letter — ClearDue Legal B.V.', html: engagementLetterEmailHTML(clientName, letterHTML || '') });
+    await sendEmail({ to, subject: 'Your engagement letter — ClearDue Legal B.V.', html: engagementLetterEmailHTML(clientName, letterHTML || '', letterId, lawyerEmail, appUrl) });
     res.json({ ok: true });
   } catch (e) {
     console.error('[Email] Engagement letter failed:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/notify-lawyer ───────────────────────────────────────────────────
+app.post('/api/notify-lawyer', async (req, res) => {
+  const { to, clientName, action, letterId } = req.body;
+  if (!to) return res.status(400).json({ error: 'Missing lawyer email' });
+  const actionLabel = action === 'approve' ? 'APPROVED' : 'DENIED';
+  const colour      = action === 'approve' ? '#15803d'  : '#b91c1c';
+  const icon        = action === 'approve' ? '✓' : '✕';
+  const html = `<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#f7f8fa;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0"
+      style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+      <tr><td style="background:#1a2744;padding:24px 32px;">
+        <span style="font-size:18px;font-weight:700;color:white;">&#9679;&nbsp; ClearDue Legal B.V.</span>
+      </td></tr>
+      <tr><td style="padding:32px;">
+        <div style="background:${colour}18;border:1.5px solid ${colour};border-radius:10px;padding:18px 22px;margin-bottom:24px;">
+          <p style="font-size:15px;font-weight:700;color:${colour};margin:0 0 4px;">${icon} Engagement letter ${actionLabel}</p>
+          <p style="font-size:13px;color:#374151;margin:0;">
+            <strong>${clientName || 'The client'}</strong> has <strong>${actionLabel.toLowerCase()}</strong> the engagement letter.
+            ${letterId ? `<br><span style="font-size:11px;color:#9ca3af;">Letter ID: ${letterId}</span>` : ''}
+          </p>
+        </div>
+        <p style="font-size:14px;color:#4a5568;line-height:1.7;margin:0 0 16px;">
+          Please log in to the ClearDue portal to review the client's response and update the file accordingly.
+        </p>
+        <p style="font-size:13px;color:#8a94a6;border-top:1px solid #e2e5ec;padding-top:20px;margin:0;">
+          ClearDue Legal B.V. &middot; Herengracht 400, 1017 BX Amsterdam &middot; info@cleardue.legal
+        </p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table></body></html>`;
+  try {
+    await sendEmail({ to, subject: `${icon} Engagement letter ${actionLabel} — ${clientName} — ClearDue Legal B.V.`, html });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[Email] Notify lawyer failed:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
