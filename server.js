@@ -482,7 +482,7 @@ ${submission.clientType === 'entity' ? `- Legal form: ${fd.legalForm || '—'}
 
 MATTER INFORMATION
 - Purpose of engagement: ${submission.purposeOfEngagement || submission.service || '—'}
-- Scope of work: ${submission.scopeOfWork || '—'}
+- Scope of work: ${(submission.scopeOfWork || '—').substring(0, 400)}
 - Estimated transaction value: ${fd.amount || '—'}
 
 PEP & UBO
@@ -503,22 +503,25 @@ DOCUMENTS UPLOADED
 Please assess all risk factors thoroughly, including: geographic risk, client type risk, PEP/UBO risk, transaction type risk, service-specific risk indicators from the Leidraad Wwft, and any unusual patterns. Suggest specific follow-up questions and documents proportionate to the risk level identified.`;
 
   try {
+    // Prefill assistant turn with '{' — forces pure JSON output, no markdown or prose wrapping
     const message = await client.messages.create({
       model:      'claude-sonnet-4-6',
       max_tokens: 4096,
       system:     systemPrompt,
-      messages:   [{ role: 'user', content: userPrompt }],
+      messages:   [
+        { role: 'user',      content: userPrompt },
+        { role: 'assistant', content: '{' },
+      ],
     });
 
-    const raw = message.content[0]?.text || '';
-    // Extract JSON robustly — find first { and last } regardless of surrounding text/fences
-    const start = raw.indexOf('{');
-    const end   = raw.lastIndexOf('}');
-    if (start === -1 || end === -1) {
-      console.error('[RiskAssessment] No JSON object found in response:', raw.substring(0, 300));
-      return res.status(500).json({ error: 'AI did not return a valid assessment — please try again.' });
+    // The model continues from '{' — prepend it back
+    const raw        = '{' + (message.content[0]?.text || '');
+    const stopReason = message.stop_reason;
+    if (stopReason === 'max_tokens') {
+      console.error('[RiskAssessment] Response truncated — increase max_tokens or shorten prompt');
+      return res.status(500).json({ error: 'Assessment was too long to complete — please try again.' });
     }
-    const assessment = JSON.parse(raw.slice(start, end + 1));
+    const assessment = JSON.parse(raw);
     res.json({ assessment });
   } catch(e) {
     console.error('[RiskAssessment] Error:', e.message);

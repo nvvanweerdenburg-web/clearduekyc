@@ -1697,6 +1697,12 @@
     <!-- Step 0: Work description -->
     <div id="eng-step-0">
       <div class="modal-field">
+        <label>Recipient email address <span class="req">*</span></label>
+        <input type="email" id="eng-recipient-email" placeholder="client@example.com"
+          style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;color:var(--text);box-sizing:border-box;">
+        <div style="font-size:11px;color:var(--text-3);margin-top:4px;">The engagement letter notification will be sent to this address.</div>
+      </div>
+      <div class="modal-field">
         <label>Describe the work we are going to perform <span class="req">*</span></label>
         <textarea id="eng-work-desc" rows="4" style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;resize:vertical;" placeholder="e.g. We will advise the client on all legal aspects of the acquisition of a residential property located at Keizersgracht 123, Amsterdam, including due diligence, drafting the purchase agreement, and notarial coordination."></textarea>
       </div>
@@ -3224,6 +3230,7 @@ const _origOpenEngModal = window.openEngModal;
 window.openEngModal = function(name, email, service, submissionId) {
   engClient = { name, email, service, submissionId: submissionId || _currentSubmissionId || null };
   engStep = 0; selectedTeam = new Set(); feeType = '';
+  document.getElementById('eng-recipient-email').value = email || '';
   document.getElementById('eng-work-desc').value = 'Legal advice and representation in connection with ' + service.toLowerCase() + '.';
   document.getElementById('eng-timeline').value = 'to be agreed';
   document.getElementById('eng-est-hours').value = '';
@@ -3239,6 +3246,12 @@ window.openEngModal = function(name, email, service, submissionId) {
 // Override sendEngLetter — saves to Firestore + sends real email to client
 const _origSendEngLetter = window.sendEngLetter;
 window.sendEngLetter = async function() {
+  const recipientEmail = document.getElementById('eng-recipient-email')?.value?.trim() || engClient.email || '';
+  if (!recipientEmail || !recipientEmail.includes('@')) {
+    alert('Please enter a valid recipient email address in step 1.');
+    return;
+  }
+  engClient.email = recipientEmail; // keep in sync
   closeEngModal();
   document.getElementById('client-letter-content').innerHTML = window._pendingEngLetter || '';
 
