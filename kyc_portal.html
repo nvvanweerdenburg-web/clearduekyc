@@ -1385,28 +1385,23 @@
     <div class="metrics-row">
       <div class="metric-card">
         <div class="metric-label">Total files</div>
-        <div class="metric-value">24</div>
-        <div class="metric-sub">8 opened this month</div>
+        <div class="metric-value">0</div>
+        <div class="metric-sub">All submissions</div>
       </div>
       <div class="metric-card warn">
         <div class="metric-label">Incomplete files</div>
-        <div class="metric-value">7</div>
+        <div class="metric-value">0</div>
         <div class="metric-sub">Documents missing</div>
       </div>
       <div class="metric-card alert">
         <div class="metric-label">High risk</div>
-        <div class="metric-value">3</div>
+        <div class="metric-value">0</div>
         <div class="metric-sub">Require review</div>
       </div>
       <div class="metric-card ok">
         <div class="metric-label">Approved</div>
-        <div class="metric-value">14</div>
+        <div class="metric-value">0</div>
         <div class="metric-sub">Complete &amp; verified</div>
-      </div>
-      <div class="metric-card warn">
-        <div class="metric-label">Reminders sent</div>
-        <div class="metric-value">12</div>
-        <div class="metric-sub">Last 30 days</div>
       </div>
     </div>
 
@@ -1446,284 +1441,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr onclick="toggleDetail('d1')" style="cursor:pointer">
-            <td><strong>Jan de Vries</strong><div class="committee-flag">⚑ Committee required</div><div style="font-size:11px;color:var(--text-3)">Natural person</div></td>
-            <td><span class="tag">Natural</span></td>
-            <td>Real estate</td>
-            <td><span class="badge badge-amber">Incomplete</span></td>
-            <td>
-              <div class="doc-match" title="Passport ✓, Address proof ✗, Source of funds ✗">
-                <div class="doc-pip green"></div>
-                <div class="doc-pip red"></div>
-                <div class="doc-pip red"></div>
-                <div style="font-size:11px;color:var(--text-3);margin-left:4px">1/3</div>
-              </div>
-            </td>
-            <td><div class="risk-light risk-med"><div class="risk-dot"></div>Medium</div></td>
-            <td><span class="badge badge-amber">2 sent</span></td>
-            <td style="color:var(--text-3);font-size:12px">2 days ago</td>
-            <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-              <button class="committee-btn" onclick="event.stopPropagation(); openCommitteeModal('Jan de Vries',currentUser?.email||'jan.devries@email.nl','natural','medium','Real estate transaction','Legal advice and representation in connection with the acquisition of residential real estate, including due diligence, purchase agreement review, and notarial coordination.')">⚑ Refer to committee</button>
-              <button class="send-reminder-btn" onclick="event.stopPropagation(); sendReminderEmail(currentUser?.email||'jan.devries@email.nl','Jan de Vries')">Send reminder</button>
-              <button class="eng-toggle" onclick="event.stopPropagation(); openEngModal('Jan de Vries',currentUser?.email||'jan.devries@email.nl','Real estate transaction')">&#9993; Send engagement letter</button>
-            </td>
-          </tr>
-          <tr id="d1-row"><td colspan="9" style="padding:0; background:var(--surface-2)">
-            <div class="detail-panel" id="d1">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                <h3 style="font-size:16px;font-weight:600;">Jan de Vries — File detail</h3>
-                <div style="display:flex;gap:8px;">
-                  <button class="btn-sm">View full profile</button>
-                  <button class="btn-sm primary">Approve file</button>
-                </div>
-              </div>
-              <div class="detail-grid">
-                <!-- Risk score -->
-                <div>
-                  <div class="detail-section-title">Risk assessment (β)</div>
-                  <div class="risk-score-widget">
-                    <div class="risk-score-number" style="color:var(--amber)">62</div>
-                    <div class="risk-score-label">out of 100 — Medium risk</div>
-                    <div class="traffic-bar"><div class="traffic-needle" style="left:62%"></div></div>
-                    <ul class="risk-factors" style="margin-top:14px">
-                      <li class="risk-factor"><span class="rf-icon rf-neg">↑</span> Real estate transaction (Wwft trigger)</li>
-                      <li class="risk-factor"><span class="rf-icon rf-neg">↑</span> Transaction &gt; €250k</li>
-                      <li class="risk-factor"><span class="rf-icon rf-neu">–</span> Dutch national, NL resident</li>
-                      <li class="risk-factor"><span class="rf-icon rf-pos">✓</span> No PEP indication</li>
-                      <li class="risk-factor"><span class="rf-icon rf-neg">!</span> Source of funds document missing</li>
-                    </ul>
-                    <div class="risk-disclaimer">Indicative only. Professional judgment required. Not a substitute for the lawyer's assessment.</div>
-                  </div>
-                </div>
-                <!-- Missing docs + checks -->
-                <div>
-                  <div class="detail-section-title">Document status</div>
-                  <ul class="missing-docs-list">
-                    <li class="missing-doc-item"><div class="missing-x">✗</div> Proof of address (missing)</li>
-                    <li class="missing-doc-item"><div class="missing-x">✗</div> Source of funds declaration (missing)</li>
-                    <li class="missing-doc-item" style="color:var(--green)"><span style="width:18px;height:18px;border-radius:50%;background:var(--green-bg);color:var(--green);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;margin-right:8px;flex-shrink:0">✓</span> Passport (verified, exp. 2028)</li>
-                  </ul>
-                  <div style="margin-top:16px">
-                    <div class="detail-section-title">Answer / document checks</div>
-                    <div class="check-row"><span class="check-label">Name on passport matches intake</span><span class="check-ok check-val">✓ Match</span></div>
-                    <div class="check-row"><span class="check-label">ID not expired</span><span class="check-ok check-val">✓ Valid to 2028</span></div>
-                    <div class="check-row"><span class="check-label">Source of funds declared</span><span class="check-mismatch check-val">✗ Missing</span></div>
-                    <div class="check-row"><span class="check-label">PEP screen</span><span class="check-ok check-val">✓ No indication</span></div>
-                  </div>
-                </div>
-                <!-- Reminders log -->
-                <div>
-                  <div class="detail-section-title">Reminder log</div>
-                  <div class="reminder-item">
-                    <span class="reminder-time">18 Mar 09:12</span>
-                    <div class="reminder-icon ri-email">✉</div>
-                    <span class="reminder-text">Reminder #2 sent — documents outstanding</span>
-                  </div>
-                  <div class="reminder-item">
-                    <span class="reminder-time">15 Mar 09:00</span>
-                    <div class="reminder-icon ri-email">✉</div>
-                    <span class="reminder-text">Reminder #1 sent — initial request</span>
-                  </div>
-                  <div class="reminder-item">
-                    <span class="reminder-time">12 Mar 14:30</span>
-                    <div class="reminder-icon ri-warn">!</div>
-                    <span class="reminder-text">File opened — intake form submitted</span>
-                  </div>
-                </div>
-              </div>
-              <!-- Adverse media + BD intel row -->
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:4px;">
-                <div>
-                  <div class="detail-section-title">Adverse media search <span style="font-size:10px;background:var(--surface-3);padding:2px 6px;border-radius:4px;margin-left:6px;font-weight:400;text-transform:none;letter-spacing:0">via web search · 19 Mar 2026</span></div>
-                  <div class="media-item">
-                    <div class="media-item-header"><span class="media-source">NRC.nl</span><span class="media-date">14 Mar 2026</span></div>
-                    <div class="media-headline">Jan de Vries neemt afscheid van vastgoedsector na jarenlange carrière</div>
-                    <div class="media-snippet">Algemeen bericht over pensionering — geen negatieve connotaties gevonden.</div>
-                    <span class="media-sentiment sent-neutral">Neutral</span>
-                  </div>
-                  <div class="media-item">
-                    <div class="media-item-header"><span class="media-source">No adverse media found</span><span class="media-date">—</span></div>
-                    <div class="media-snippet" style="color:var(--green)">No sanctions, enforcement actions, or criminal proceedings identified in public sources.</div>
-                    <span class="media-sentiment sent-positive">Clean</span>
-                  </div>
-                  <div style="font-size:11px;color:var(--text-3);margin-top:8px;font-style:italic">Search: "Jan de Vries" + "fraude OR witwassen OR sanctie OR criminal" — 0 adverse results. Not a substitute for a full sanctions database check.</div>
-                </div>
-                <div>
-                  <div class="detail-section-title">Commercial intelligence <span style="font-size:10px;background:var(--accent-soft);padding:2px 6px;border-radius:4px;margin-left:6px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--amber)">BD topics</span></div>
-                  <div class="bd-card">
-                    <div class="bd-card-topic">Market trend</div>
-                    <div class="bd-card-title">Amsterdam residential market cools — opportunity or risk for your client?</div>
-                    <div class="bd-card-snippet">Prices fell 3.2% YoY in Q1 2026 (NVM). For a &gt;€250k transaction, timing and financing structure are worth discussing.</div>
-                    <div class="bd-card-cta">Suggested talking point →</div>
-                  </div>
-                  <div class="bd-card" style="background:linear-gradient(135deg,#1e4a3a,#1e7a4e)">
-                    <div class="bd-card-topic">Regulatory update</div>
-                    <div class="bd-card-title">New Wwft obligations for real estate take effect 1 July 2026</div>
-                    <div class="bd-card-snippet">Extended CDD requirements for transactions above €100k. Client may benefit from early structuring advice.</div>
-                    <div class="bd-card-cta">Relevant to this file →</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </td></tr>
-
-          <tr onclick="toggleDetail('d2')" style="cursor:pointer">
-            <td><strong>Acme Holding BV</strong><div class="committee-flag">⚑ Committee required</div><div style="font-size:11px;color:var(--text-3)">Legal entity</div></td>
-            <td><span class="tag">Entity</span></td>
-            <td>M&amp;A</td>
-            <td><span class="badge badge-red">High risk review</span></td>
-            <td>
-              <div class="doc-match">
-                <div class="doc-pip green"></div><div class="doc-pip green"></div>
-                <div class="doc-pip amber"></div><div class="doc-pip red"></div>
-                <div style="font-size:11px;color:var(--text-3);margin-left:4px">2/4</div>
-              </div>
-            </td>
-            <td><div class="risk-light risk-high"><div class="risk-dot"></div>High</div></td>
-            <td><span class="badge badge-red">3 sent</span></td>
-            <td style="color:var(--text-3);font-size:12px">Today</td>
-            <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-              <button class="committee-btn" onclick="event.stopPropagation(); openCommitteeModal('Acme Holding BV',currentUser?.email||'contact@acme.nl','entity','high','M&A transaction','Legal advice and representation in connection with a cross-border M&A transaction, including target due diligence, transaction structuring, share purchase agreement drafting, and regulatory filings.')">⚑ Refer to committee</button>
-              <button class="send-reminder-btn" onclick="event.stopPropagation(); sendReminderEmail(currentUser?.email||'contact@acme.nl','Acme Holding BV')">Send reminder</button>
-              <button class="eng-toggle" onclick="event.stopPropagation(); openEngModal('Acme Holding BV',currentUser?.email||'contact@acme.nl','M&A transaction')">&#9993; Send engagement letter</button>
-            </td>
-          </tr>
-          <tr id="d2-row"><td colspan="9" style="padding:0; background:var(--surface-2)">
-            <div class="detail-panel" id="d2">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                <h3 style="font-size:16px;font-weight:600;">Acme Holding BV — File detail</h3>
-                <div style="display:flex;gap:8px;">
-                  <button class="btn-sm">View full profile</button>
-                  <button class="btn-sm" style="background:var(--red-bg);color:var(--red);border-color:#fca5a5">Flag for review</button>
-                </div>
-              </div>
-              <div class="detail-grid">
-                <div>
-                  <div class="detail-section-title">Risk assessment (β)</div>
-                  <div class="risk-score-widget">
-                    <div class="risk-score-number" style="color:var(--red)">84</div>
-                    <div class="risk-score-label">out of 100 — High risk</div>
-                    <div class="traffic-bar"><div class="traffic-needle" style="left:84%"></div></div>
-                    <ul class="risk-factors" style="margin-top:14px">
-                      <li class="risk-factor"><span class="rf-icon rf-neg">↑</span> M&amp;A transaction &gt; €1M</li>
-                      <li class="risk-factor"><span class="rf-icon rf-neg">↑</span> UBO resident in high-risk country</li>
-                      <li class="risk-factor"><span class="rf-icon rf-neg">↑</span> Complex ownership structure</li>
-                      <li class="risk-factor"><span class="rf-icon rf-neg">!</span> UBO identity document missing</li>
-                      <li class="risk-factor"><span class="rf-icon rf-neg">!</span> Source of wealth not declared</li>
-                    </ul>
-                    <div class="risk-disclaimer">Indicative only. Professional judgment required. Not a substitute for the lawyer's assessment.</div>
-                  </div>
-                </div>
-                <div>
-                  <div class="detail-section-title">Document status</div>
-                  <ul class="missing-docs-list">
-                    <li class="missing-doc-item" style="color:var(--green)"><span style="width:18px;height:18px;border-radius:50%;background:var(--green-bg);color:var(--green);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;margin-right:8px;flex-shrink:0">✓</span> KvK extract (verified)</li>
-                    <li class="missing-doc-item" style="color:var(--green)"><span style="width:18px;height:18px;border-radius:50%;background:var(--green-bg);color:var(--green);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;margin-right:8px;flex-shrink:0">✓</span> Articles of association</li>
-                    <li class="missing-doc-item"><div class="missing-x">✗</div> UBO passport (missing)</li>
-                    <li class="missing-doc-item"><div class="missing-x">✗</div> Source of wealth declaration (missing)</li>
-                  </ul>
-                  <div style="margin-top:16px">
-                    <div class="detail-section-title">Answer / document checks</div>
-                    <div class="check-row"><span class="check-label">KvK name matches intake form</span><span class="check-ok check-val">✓ Match</span></div>
-                    <div class="check-row"><span class="check-label">UBO name matches KvK register</span><span class="check-mismatch check-val">✗ Discrepancy</span></div>
-                    <div class="check-row"><span class="check-label">UBO identity verified</span><span class="check-mismatch check-val">✗ Missing</span></div>
-                  </div>
-                </div>
-                <div>
-                  <div class="detail-section-title">Reminder log</div>
-                  <div class="reminder-item">
-                    <span class="reminder-time">20 Mar 08:00</span>
-                    <div class="reminder-icon ri-warn">!</div>
-                    <span class="reminder-text">Reminder #3 — escalated (7 days outstanding)</span>
-                  </div>
-                  <div class="reminder-item">
-                    <span class="reminder-time">17 Mar 09:00</span>
-                    <div class="reminder-icon ri-email">✉</div>
-                    <span class="reminder-text">Reminder #2 — documents still missing</span>
-                  </div>
-                  <div class="reminder-item">
-                    <span class="reminder-time">13 Mar 09:00</span>
-                    <div class="reminder-icon ri-email">✉</div>
-                    <span class="reminder-text">Reminder #1 — initial request</span>
-                  </div>
-                </div>
-              </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:4px;">
-                <div>
-                  <div class="detail-section-title">Adverse media search <span style="font-size:10px;background:var(--red-bg);padding:2px 6px;border-radius:4px;margin-left:6px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--red)">2 results</span></div>
-                  <div class="media-item" style="border-color:#fca5a5">
-                    <div class="media-item-header"><span class="media-source">FD.nl</span><span class="media-date">3 Feb 2026</span></div>
-                    <div class="media-headline">Holding structure Acme onderzocht door Belastingdienst</div>
-                    <div class="media-snippet">Fiscaal onderzoek naar doorsluisconstructies — zaak lopend, geen veroordeling.</div>
-                    <span class="media-sentiment sent-negative">Adverse</span>
-                  </div>
-                  <div class="media-item" style="border-color:#fca5a5">
-                    <div class="media-item-header"><span class="media-source">Reuters</span><span class="media-date">11 Jan 2026</span></div>
-                    <div class="media-headline">Dutch shell company network linked to offshore structures</div>
-                    <div class="media-snippet">Acme Holding BV named in investigative report on ownership chains. Company denies wrongdoing.</div>
-                    <span class="media-sentiment sent-negative">Adverse</span>
-                  </div>
-                  <div style="font-size:11px;color:var(--red);margin-top:8px;font-weight:500">⚠ Adverse media identified. Enhanced due diligence and lawyer review required before proceeding.</div>
-                </div>
-                <div>
-                  <div class="detail-section-title">Commercial intelligence <span style="font-size:10px;background:var(--accent-soft);padding:2px 6px;border-radius:4px;margin-left:6px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--amber)">BD topics</span></div>
-                  <div class="bd-card" style="background:linear-gradient(135deg,#7c2d12,#b45309)">
-                    <div class="bd-card-topic">Regulatory risk</div>
-                    <div class="bd-card-title">UBO register enforcement intensifying in NL — 12 firms fined in Q1 2026</div>
-                    <div class="bd-card-snippet">AFM stepped up KvK UBO enforcement. Complex holding structures are primary targets. Compliance advice opportunity.</div>
-                    <div class="bd-card-cta">Relevant to this file →</div>
-                  </div>
-                  <div class="bd-card">
-                    <div class="bd-card-topic">M&A market</div>
-                    <div class="bd-card-title">Cross-border M&A in NL up 18% YoY — deal timelines shortening</div>
-                    <div class="bd-card-snippet">Q1 2026 M&A activity strong despite macro uncertainty. Buyers using shorter exclusivity windows.</div>
-                    <div class="bd-card-cta">Market context →</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </td></tr>
-
-          <tr>
-            <td><strong>Sophie Martens</strong><div class="committee-flag">⚑ Committee required</div><div style="font-size:11px;color:var(--text-3)">Natural person</div></td>
-            <td><span class="tag">Natural</span></td>
-            <td>Contract</td>
-            <td><span class="badge badge-green">Approved</span></td>
-            <td>
-              <div class="doc-match">
-                <div class="doc-pip green"></div><div class="doc-pip green"></div>
-                <div style="font-size:11px;color:var(--text-3);margin-left:4px">2/2</div>
-              </div>
-            </td>
-            <td><div class="risk-light risk-low"><div class="risk-dot"></div>Low</div></td>
-            <td><span class="badge badge-gray">0 sent</span></td>
-            <td style="color:var(--text-3);font-size:12px">5 days ago</td>
-            <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-              <span style="font-size:12px;color:var(--green);font-weight:500">Complete</span>
-              <button class="committee-btn" onclick="event.stopPropagation(); openCommitteeModal('Sophie Martens',currentUser?.email||'sophie.martens@email.nl','natural','low','Contract review','Legal advice and representation in connection with contract review and negotiation.')">⚑ Refer to committee</button>
-            </td>
-          </tr>
-
-          <tr>
-            <td><strong>Horizon Capital NV</strong><div style="font-size:11px;color:var(--text-3)">Legal entity</div></td>
-            <td><span class="tag">Entity</span></td>
-            <td>Corporate</td>
-            <td><span class="badge badge-blue">Pending review</span></td>
-            <td>
-              <div class="doc-match">
-                <div class="doc-pip green"></div><div class="doc-pip green"></div>
-                <div class="doc-pip green"></div><div class="doc-pip amber"></div>
-                <div style="font-size:11px;color:var(--text-3);margin-left:4px">3/4</div>
-              </div>
-            </td>
-            <td><div class="risk-light risk-med"><div class="risk-dot"></div>Medium</div></td>
-            <td><span class="badge badge-amber">1 sent</span></td>
-            <td style="color:var(--text-3);font-size:12px">1 day ago</td>
-            <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-              <button class="send-reminder-btn" onclick="sendReminderEmail(currentUser?.email||'horizon@capital.nl','Horizon Capital NV')">Send reminder</button>
-              <button class="eng-toggle" onclick="openEngModal('Horizon Capital NV',currentUser?.email||'horizon@capital.nl','Corporate structuring')">&#9993; Send engagement letter</button>
-            </td>
-          </tr>
+          <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-3);font-size:13px;">Loading…</td></tr>
         </tbody>
       </table>
     </div>
