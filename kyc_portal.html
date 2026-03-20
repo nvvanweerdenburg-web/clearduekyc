@@ -3093,7 +3093,7 @@ window.sendEngLetter = async function() {
 
   // 2. Send real email via backend (include letterId + lawyerEmail for approve/deny links)
   try {
-    await fetch('/api/send-engagement-letter', {
+    const emailRes = await fetch('/api/send-engagement-letter', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -3104,7 +3104,16 @@ window.sendEngLetter = async function() {
         lawyerEmail: currentUser?.email || '',
       }),
     });
-  } catch(e) { console.error('Email send error:', e); }
+    if (!emailRes.ok) {
+      const err = await emailRes.json().catch(() => ({}));
+      _toast('⚠ Letter saved but email failed: ' + (err.error || `server error ${emailRes.status}`), 'red');
+      return;
+    }
+  } catch(e) {
+    console.error('Email send error:', e);
+    _toast('⚠ Letter saved but email could not be sent — check server logs', 'red');
+    return;
+  }
 
   _toast('✓ Engagement letter sent to ' + engClient.email);
   setTimeout(() => {
