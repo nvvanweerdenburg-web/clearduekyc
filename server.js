@@ -163,49 +163,40 @@ function reminderEmailHTML(clientName) {
 }
 
 function engagementLetterEmailHTML(clientName, letterHTML, letterId, lawyerEmail, appUrl) {
-  const base = appUrl || process.env.APP_URL || 'https://clearduekyc-production.up.railway.app';
+  const base       = appUrl || process.env.APP_URL || 'https://clearduekyc-production.up.railway.app';
   const approveUrl = `${base}?letter_action=approve&lid=${encodeURIComponent(letterId||'')}&lawyer=${encodeURIComponent(lawyerEmail||'')}`;
   const denyUrl    = `${base}?letter_action=deny&lid=${encodeURIComponent(letterId||'')}&lawyer=${encodeURIComponent(lawyerEmail||'')}`;
-  const actionButtons = letterId ? `
-        <div style="text-align:center;margin:0 0 28px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-          <a href="${approveUrl}"
-            style="display:inline-block;background:#15803d;color:white;text-decoration:none;
-                   padding:13px 32px;border-radius:10px;font-size:14px;font-weight:600;letter-spacing:-0.2px;">
-            ✓ Approve engagement letter
-          </a>
-          <a href="${denyUrl}"
-            style="display:inline-block;background:#b91c1c;color:white;text-decoration:none;
-                   padding:13px 32px;border-radius:10px;font-size:14px;font-weight:600;letter-spacing:-0.2px;">
-            ✕ Deny / request changes
-          </a>
-        </div>` : `
-        <div style="background:#e8f5ee;border:1px solid #6ee7b7;border-radius:8px;padding:14px 18px;margin-bottom:24px;">
-          <p style="font-size:13px;color:#1e7a4e;font-weight:600;margin:0 0 4px;">Next step</p>
-          <p style="font-size:13px;color:#065f46;margin:0;">Log in to the portal to approve or deny this engagement letter.</p>
-        </div>`;
   return `<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#f7f8fa;font-family:'Helvetica Neue',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px;">
   <tr><td align="center">
-    <table width="660" cellpadding="0" cellspacing="0"
+    <table width="560" cellpadding="0" cellspacing="0"
       style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
       <tr><td style="background:#1a2744;padding:24px 32px;">
         <span style="font-size:18px;font-weight:700;color:white;letter-spacing:-0.3px;">&#9679;&nbsp; ClearDue Legal B.V.</span>
       </td></tr>
       <tr><td style="padding:32px;">
-        <p style="font-size:15px;font-weight:600;color:#0e1624;margin:0 0 8px;">Dear ${clientName || 'Client'},</p>
+        <p style="font-size:15px;font-weight:600;color:#0e1624;margin:0 0 16px;">Engagement letter for signing</p>
         <p style="font-size:14px;color:#4a5568;line-height:1.7;margin:0 0 24px;">
-          Please find your engagement letter from <strong>ClearDue Legal B.V.</strong> below.
-          Review it carefully and use the buttons below to approve or deny.
-          Work may only begin after KYC is complete and this letter has been approved.
+          Dear ${clientName || 'Client'},<br><br>
+          Your engagement letter from <strong>ClearDue Legal B.V.</strong> is ready for review.
+          Please use the buttons below to approve or deny the letter.
+          Work may only commence after your KYC file is complete and the engagement letter has been approved.
         </p>
-        <div style="border:1px solid #e2e5ec;border-radius:10px;padding:28px;background:#fafafa;margin-bottom:24px;">
-          ${letterHTML}
+        <div style="text-align:center;margin:0 0 28px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          <a href="${approveUrl}"
+            style="display:inline-block;background:#15803d;color:white;text-decoration:none;
+                   padding:13px 32px;border-radius:10px;font-size:14px;font-weight:600;">
+            ✓ Approve
+          </a>
+          <a href="${denyUrl}"
+            style="display:inline-block;background:#b91c1c;color:white;text-decoration:none;
+                   padding:13px 32px;border-radius:10px;font-size:14px;font-weight:600;">
+            ✕ Deny
+          </a>
         </div>
-        ${actionButtons}
         <p style="font-size:13px;color:#8a94a6;border-top:1px solid #e2e5ec;padding-top:20px;margin:0;">
-          ClearDue Legal B.V. &middot; Herengracht 400, 1017 BX Amsterdam &middot; info@cleardue.legal<br>
-          KvK: 80123456 &middot; BTW: NL003456789B01
+          ClearDue Legal B.V. &middot; Herengracht 400, 1017 BX Amsterdam &middot; info@cleardue.legal
         </p>
       </td></tr>
     </table>
@@ -520,16 +511,18 @@ Please assess all risk factors thoroughly, including: geographic risk, client ty
     });
 
     const raw = message.content[0]?.text || '';
-    // Strip any accidental markdown fences
-    const jsonStr = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/,'').trim();
-    const assessment = JSON.parse(jsonStr);
+    // Extract JSON robustly — find first { and last } regardless of surrounding text/fences
+    const start = raw.indexOf('{');
+    const end   = raw.lastIndexOf('}');
+    if (start === -1 || end === -1) {
+      console.error('[RiskAssessment] No JSON object found in response:', raw.substring(0, 300));
+      return res.status(500).json({ error: 'AI did not return a valid assessment — please try again.' });
+    }
+    const assessment = JSON.parse(raw.slice(start, end + 1));
     res.json({ assessment });
   } catch(e) {
     console.error('[RiskAssessment] Error:', e.message);
-    if (e instanceof SyntaxError) {
-      return res.status(500).json({ error: 'AI returned malformed JSON — please try again.' });
-    }
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Assessment failed: ' + e.message });
   }
 });
 
