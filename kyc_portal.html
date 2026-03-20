@@ -1205,31 +1205,6 @@
         <div>These questions are tailored to your profile. They help us comply with the Dutch Wwft and assess the nature of the legal services required.</div>
       </div>
 
-      <div class="form-card">
-        <div class="form-section-title">Purpose of engagement</div>
-        <div class="field-group">
-          <label>What type of legal assistance are you seeking? <span class="req">*</span></label>
-          <select id="f-service" onchange="showAdaptiveQuestions()">
-            <option value="">— Select —</option>
-            <option value="realestate">Real estate transaction</option>
-            <option value="ma">Mergers & acquisitions / company sale</option>
-            <option value="corporate">Corporate structuring</option>
-            <option value="dispute">Dispute resolution / litigation</option>
-            <option value="contract">Contract drafting</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label>Estimated transaction value <span class="hint">(if applicable)</span></label>
-          <select id="f-amount">
-            <option value="">— Select —</option>
-            <option value="small">Under €25,000</option>
-            <option value="med">€25,000 – €250,000</option>
-            <option value="large">€250,000 – €1,000,000</option>
-            <option value="xlarge">Over €1,000,000</option>
-          </select>
-        </div>
-      </div>
 
       <!-- Adaptive: PEP question for natural persons -->
       <div id="pep-block" class="form-card" style="display:none">
@@ -1595,7 +1570,7 @@
       <label class="modal-label">Client email address</label>
       <input type="email" id="invite-email" placeholder="client@example.com"
         style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;color:var(--text);box-sizing:border-box;"
-        onkeydown="if(event.key==='Enter') document.getElementById('invite-purpose').focus()">
+        onkeydown="if(event.key==='Enter') document.getElementById('invite-scope').focus()">
       <div style="margin-top:8px;padding:10px 12px;background:#fef9ec;border:1px solid #f5d97a;border-radius:8px;font-size:12px;color:#92690a;line-height:1.5;">
         ⚠ <strong>Test environment.</strong> Please only enter your own email address or the email address of another tester.
       </div>
@@ -1803,6 +1778,7 @@ function selectClientType(type) {
   document.getElementById('btn-next-0').disabled = false;
   document.getElementById('step1-natural').style.display = type === 'natural' ? 'block' : 'none';
   document.getElementById('step1-entity').style.display = type === 'entity' ? 'block' : 'none';
+  showAdaptiveQuestions();
 }
 
 function selectRadio(el, name, val) {
@@ -1861,15 +1837,17 @@ function checkHighRisk() {
 function checkPEPCountry() {}
 
 function showAdaptiveQuestions() {
-  const service = document.getElementById('f-service').value;
+  const purpose = (window._purposeOfEngagement || '').toLowerCase();
+  const isRealEstate = purpose.includes('real estate');
+  const isMA = purpose.includes('merger') || purpose.includes('acquisition') || purpose.includes('m&a');
   document.getElementById('pep-block').style.display = clientType === 'natural' ? 'block' : 'none';
   document.getElementById('ubo-block').style.display = clientType === 'entity' ? 'block' : 'none';
-  document.getElementById('realestate-block').style.display = service === 'realestate' ? 'block' : 'none';
-  document.getElementById('ma-block').style.display = service === 'ma' ? 'block' : 'none';
+  document.getElementById('realestate-block').style.display = isRealEstate ? 'block' : 'none';
+  document.getElementById('ma-block').style.display = isMA ? 'block' : 'none';
 }
 
 function buildDocList() {
-  const service = document.getElementById('f-service') ? document.getElementById('f-service').value : '';
+  const service = window._purposeOfEngagement || '';
   const country = clientType === 'natural'
     ? (document.getElementById('f-country') ? document.getElementById('f-country').value : '')
     : (document.getElementById('f-inc-country') ? document.getElementById('f-inc-country').value : '');
@@ -3047,7 +3025,7 @@ function _collectFormData() {
       nationality: document.getElementById('f-nationality')?.value || '',
       country:     document.getElementById('f-country')?.value || '',
       bsn:         document.getElementById('f-bsn')?.value || '',
-      service:     document.getElementById('f-service')?.value || '',
+      service:     window._purposeOfEngagement || '',
     };
   }
   return {
