@@ -3,6 +3,7 @@ const path       = require('path');
 const nodemailer = require('nodemailer');
 const { Resend } = require('resend');
 const fs         = require('fs');
+const Anthropic  = require('@anthropic-ai/sdk');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -424,6 +425,112 @@ app.post('/api/check-sanctions', (req, res) => {
     }
   }
   res.json({ hits, checked: names.length, listSize: _sanctionsNames?.length || 0 });
+});
+
+// ── POST /api/risk-assessment ─────────────────────────────────────────────────
+app.post('/api/risk-assessment', async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(503).json({ error: 'ANTHROPIC_API_KEY is not configured in Railway Variables.' });
+  }
+  const { submission } = req.body;
+  if (!submission) return res.status(400).json({ error: 'Missing submission data.' });
+
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+  const systemPrompt = `You are a Dutch legal compliance specialist with deep expertise in:
+- Wet ter voorkoming van witwassen en financieren van terrorisme (Wwft)
+- Leidraad Wwft for legal professionals (advocaten, notarissen) published by the Dutch supervisory authorities
+- FATF 40 Recommendations, FATF Guidance for Legal Professionals, and FATF high-risk/monitored jurisdictions
+- EU AML Directives (AMLD4, AMLD5, AMLD6) as transposed into Dutch law
+- Dutch Bar Association (NOvA) guidelines on Wwft compliance
+
+Your task: produce a structured CDD/risk assessment for a KYC file at a Dutch law firm. Be specific — reference actual legal provisions and Leidraad sections. Be concise but substantive. Always mention the legal basis.
+
+Return ONLY valid JSON (no markdown, no code fences) with this exact structure:
+{
+  "overallRisk": "high" | "medium" | "low",
+  "riskJustification": "2-3 sentence summary of overall risk verdict",
+  "cddLevel": "standard" | "enhanced" | "simplified",
+  "cddJustification": "Why this CDD level is required",
+  "riskFactors": [
+    {
+      "factor": "Short name of risk factor",
+      "severity": "high" | "medium" | "low",
+      "explanation": "Why this is a risk factor given the specific client/matter",
+      "legalBasis": "e.g. Art. 8 Wwft / FATF R.12 / Leidraad Wwft §4.3.2"
+    }
+  ],
+  "suggestedQuestions": [
+    {
+      "question": "Specific question to ask the client",
+      "rationale": "Why this question is relevant under Wwft/FATF"
+    }
+  ],
+  "suggestedDocuments": [
+    {
+      "document": "Specific document to request",
+      "rationale": "Legal or risk basis for this request"
+    }
+  ],
+  "ongoingMonitoring": "Specific ongoing monitoring recommendations for this client/matter",
+  "disclaimer": "This assessment is AI-generated based on available data and does not constitute legal advice. The responsible compliance officer must validate this assessment before any engagement decision is made."
+}`;
+
+  const fd  = submission.formData || {};
+  const userPrompt = `Please generate a Wwft/FATF risk assessment for the following KYC file:
+
+CLIENT INFORMATION
+- Client type: ${submission.clientType === 'natural' ? 'Natural person (Art. 3 Wwft)' : 'Legal entity (Art. 3 Wwft)'}
+- Name: ${submission.clientName || '—'}
+- Email: ${submission.email || '—'}
+- Country of ${submission.clientType === 'natural' ? 'residence' : 'incorporation'}: ${fd.country || fd.incCountry || '—'}
+- Nationality: ${fd.nationality || '—'}
+${submission.clientType === 'entity' ? `- Legal form: ${fd.legalForm || '—'}
+- KvK number: ${fd.kvk || '—'}` : `- Date of birth: ${fd.dob || '—'}
+- BSN: ${fd.bsn ? '[provided]' : '[not provided]'}`}
+
+MATTER INFORMATION
+- Purpose of engagement: ${submission.purposeOfEngagement || submission.service || '—'}
+- Scope of work: ${submission.scopeOfWork || '—'}
+- Estimated transaction value: ${fd.amount || '—'}
+
+PEP & UBO
+- PEP status: ${fd.pep === 'yes' ? 'YES — client is or was a PEP (Art. 16 Wwft)' : fd.pep === 'no' ? 'No PEP' : 'Not stated'}
+- UBO name: ${submission.uboName || '—'}
+- UBO details: ${fd.ubo1 || '—'}
+
+CURRENT RISK INDICATORS
+- System-calculated risk: ${submission.risk || '—'}
+- Scope risk keywords: ${submission.scopeOfWork || '—'}
+- Status: ${submission.status || '—'}
+- Scope confirmed by client: ${submission.scopeConfirmed === true ? 'Yes' : submission.scopeComments ? 'Client submitted comments' : 'Pending'}
+
+DOCUMENTS UPLOADED
+- Number of documents uploaded: ${Object.keys(submission.docs || {}).length}
+- Document types: ${Object.keys(submission.docs || {}).join(', ') || 'None yet'}
+
+Please assess all risk factors thoroughly, including: geographic risk, client type risk, PEP/UBO risk, transaction type risk, service-specific risk indicators from the Leidraad Wwft, and any unusual patterns. Suggest specific follow-up questions and documents proportionate to the risk level identified.`;
+
+  try {
+    const message = await client.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 2048,
+      system:     systemPrompt,
+      messages:   [{ role: 'user', content: userPrompt }],
+    });
+
+    const raw = message.content[0]?.text || '';
+    // Strip any accidental markdown fences
+    const jsonStr = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/,'').trim();
+    const assessment = JSON.parse(jsonStr);
+    res.json({ assessment });
+  } catch(e) {
+    console.error('[RiskAssessment] Error:', e.message);
+    if (e instanceof SyntaxError) {
+      return res.status(500).json({ error: 'AI returned malformed JSON — please try again.' });
+    }
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── Catch-all → SPA ──────────────────────────────────────────────────────────

@@ -3,9 +3,9 @@
   "configurations": [
     {
       "name": "kyc-portal",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "-p", "3300", "."],
-      "port": 3300
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.js"],
+      "port": 3000
     }
   ]
 }

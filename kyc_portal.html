@@ -1529,6 +1529,77 @@
   </div>
 </div>
 
+<!-- ========== AI RISK ASSESSMENT MODAL ========== -->
+<div class="modal-overlay" id="risk-modal">
+  <div class="modal-box" style="max-width:760px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-header" style="position:sticky;top:0;background:white;z-index:2;padding-bottom:12px;border-bottom:1px solid var(--border);margin-bottom:20px;">
+      <div>
+        <div class="modal-title" id="risk-modal-title">AI Risk Assessment</div>
+        <div class="modal-sub" id="risk-modal-sub">Wwft · Leidraad Wwft · FATF · AMLD6</div>
+      </div>
+      <button class="modal-close" onclick="closeRiskModal()">✕</button>
+    </div>
+
+    <!-- Loading state -->
+    <div id="risk-loading" style="text-align:center;padding:48px 20px;">
+      <div style="font-size:28px;margin-bottom:16px;">⚖</div>
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px;">Analysing file…</div>
+      <div style="font-size:13px;color:var(--text-3);line-height:1.6;">Assessing risk factors under Wwft, Leidraad Wwft, FATF Recommendations and AMLD6.<br>This takes a few seconds.</div>
+    </div>
+
+    <!-- Error state -->
+    <div id="risk-error" style="display:none;padding:24px;background:#fff5f5;border:1px solid #fca5a5;border-radius:10px;color:#b91c1c;font-size:13px;"></div>
+
+    <!-- Result -->
+    <div id="risk-result" style="display:none;">
+
+      <!-- Verdict banner -->
+      <div id="risk-verdict-banner" style="border-radius:10px;padding:18px 22px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+          <span id="risk-verdict-icon" style="font-size:22px;"></span>
+          <div>
+            <div id="risk-verdict-label" style="font-size:15px;font-weight:700;"></div>
+            <div id="risk-cdd-label" style="font-size:12px;margin-top:2px;opacity:0.85;"></div>
+          </div>
+        </div>
+        <div id="risk-justification" style="font-size:13px;line-height:1.7;opacity:0.9;"></div>
+      </div>
+
+      <!-- Risk factors -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);margin-bottom:10px;">Risk factors identified</div>
+        <div id="risk-factors-list"></div>
+      </div>
+
+      <!-- Suggested questions -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);margin-bottom:10px;">Suggested follow-up questions</div>
+        <div id="risk-questions-list"></div>
+      </div>
+
+      <!-- Suggested documents -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);margin-bottom:10px;">Additional documents to request</div>
+        <div id="risk-docs-list"></div>
+      </div>
+
+      <!-- Ongoing monitoring -->
+      <div style="margin-bottom:20px;padding:14px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);margin-bottom:6px;">Ongoing monitoring</div>
+        <div id="risk-monitoring" style="font-size:13px;color:var(--text-2);line-height:1.7;"></div>
+      </div>
+
+      <!-- Disclaimer -->
+      <div style="font-size:11px;color:var(--text-3);line-height:1.6;border-top:1px solid var(--border);padding-top:14px;" id="risk-disclaimer"></div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
+      <button class="btn-sm" onclick="closeRiskModal()">Close</button>
+      <button class="btn-primary" id="risk-retry-btn" onclick="retryRiskAssessment()" style="display:none;width:auto;padding:9px 22px;font-size:13px;">↻ Re-run assessment</button>
+    </div>
+  </div>
+</div>
+
 <!-- ========== SCOPE CONFIRMATION MODAL (client) ========== -->
 <div class="modal-overlay" id="scope-confirm-modal">
   <div class="modal-box" style="max-width:560px;">
@@ -2708,6 +2779,7 @@ window.switchView = function(v) {
 
 // ===== Firestore: Lawyer dashboard =====
 let _unsubDash = null;
+let _dashSubs  = null; // cached for risk assessment lookups
 
 // Sanctions check cache: submissionId → { hits: [...] }
 const _sanctionsCache = {};
@@ -2769,6 +2841,7 @@ function loadDashboard() {
     .onSnapshot(async snap => {
       const subs = [];
       snap.forEach(doc => subs.push({ id: doc.id, ...doc.data() }));
+      _dashSubs = subs; // cache for risk assessment lookups
       // Render immediately (may not have sanctions data yet)
       renderDashboard(subs);
       // Run sanctions check in background, then re-render
@@ -2856,6 +2929,7 @@ function renderDashboard(subs) {
             <h3 style="font-size:16px;font-weight:600;">${name} — File detail</h3>
             <div style="display:flex;gap:8px;">
               <button class="btn-sm" onclick="_viewDocs('${sub.id}')">View documents</button>
+              <button class="btn-sm" onclick="event.stopPropagation();openRiskModal('${sub.id}')" style="background:#1a2744;color:white;border-color:#1a2744;">⚖ Automated risk assessment</button>
               <button class="btn-sm primary" onclick="_approveFile('${sub.id}')">Approve file</button>
             </div>
           </div>
@@ -2907,6 +2981,109 @@ function renderDashboard(subs) {
         </div>
       </td></tr>`;
   }).join('');
+}
+
+// ===== AI Risk Assessment =====
+let _riskCurrentSub = null;
+
+function openRiskModal(subId) {
+  // Find the submission from the cached snapshot data
+  const sub = _dashSubs ? _dashSubs.find(s => s.id === subId) : null;
+  if (!sub) { _toast('⚠ Could not find submission data', 'red'); return; }
+  _riskCurrentSub = sub;
+  document.getElementById('risk-modal-title').textContent = 'AI Risk Assessment — ' + _esc(sub.clientName || 'Client');
+  document.getElementById('risk-loading').style.display = 'block';
+  document.getElementById('risk-error').style.display   = 'none';
+  document.getElementById('risk-result').style.display  = 'none';
+  document.getElementById('risk-retry-btn').style.display = 'none';
+  document.getElementById('risk-modal').classList.add('active');
+  _runRiskAssessment(sub);
+}
+
+function closeRiskModal() {
+  document.getElementById('risk-modal').classList.remove('active');
+}
+
+async function retryRiskAssessment() {
+  if (!_riskCurrentSub) return;
+  document.getElementById('risk-loading').style.display = 'block';
+  document.getElementById('risk-error').style.display   = 'none';
+  document.getElementById('risk-result').style.display  = 'none';
+  document.getElementById('risk-retry-btn').style.display = 'none';
+  _runRiskAssessment(_riskCurrentSub);
+}
+
+async function _runRiskAssessment(sub) {
+  try {
+    const res  = await fetch('/api/risk-assessment', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ submission: sub }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Server error ' + res.status);
+    _renderRiskAssessment(data.assessment);
+  } catch(e) {
+    document.getElementById('risk-loading').style.display = 'none';
+    const errEl = document.getElementById('risk-error');
+    errEl.textContent = '⚠ ' + e.message;
+    errEl.style.display = 'block';
+    document.getElementById('risk-retry-btn').style.display = 'inline-flex';
+  }
+}
+
+function _renderRiskAssessment(a) {
+  document.getElementById('risk-loading').style.display = 'none';
+
+  // Verdict banner colours
+  const colours = { high: { bg:'#fff1f0', border:'#fca5a5', text:'#b91c1c', icon:'⚠' },
+                    medium: { bg:'#fffbeb', border:'#fcd34d', text:'#b45309', icon:'⚡' },
+                    low:  { bg:'#f0fdf4', border:'#86efac', text:'#15803d', icon:'✓' } };
+  const cddLabels = { enhanced:'Enhanced CDD required (Art. 8 Wwft)', standard:'Standard CDD (Art. 3 Wwft)', simplified:'Simplified CDD may apply (Art. 6 Wwft)' };
+  const c = colours[a.overallRisk] || colours.medium;
+  const banner = document.getElementById('risk-verdict-banner');
+  banner.style.cssText = `background:${c.bg};border:2px solid ${c.border};border-radius:10px;padding:18px 22px;margin-bottom:20px;`;
+  document.getElementById('risk-verdict-icon').textContent = c.icon;
+  document.getElementById('risk-verdict-label').style.color = c.text;
+  document.getElementById('risk-verdict-label').textContent = (a.overallRisk||'').toUpperCase() + ' RISK';
+  document.getElementById('risk-cdd-label').style.color = c.text;
+  document.getElementById('risk-cdd-label').textContent = cddLabels[a.cddLevel] || a.cddLevel || '';
+  document.getElementById('risk-justification').textContent = a.riskJustification || '';
+
+  // Risk factors
+  const sfcol = { high:'#b91c1c', medium:'#b45309', low:'#15803d' };
+  const sfbg  = { high:'#fff1f0', medium:'#fffbeb', low:'#f0fdf4' };
+  document.getElementById('risk-factors-list').innerHTML = (a.riskFactors||[]).map(f => `
+    <div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:${sfbg[f.severity]||'#f5f5f5'};color:${sfcol[f.severity]||'#374151'};text-transform:uppercase;letter-spacing:0.4px;">${_esc(f.severity||'')}</span>
+        <span style="font-size:13px;font-weight:600;color:var(--text);">${_esc(f.factor||'')}</span>
+      </div>
+      <div style="font-size:13px;color:var(--text-2);line-height:1.65;margin-bottom:4px;">${_esc(f.explanation||'')}</div>
+      <div style="font-size:11px;color:var(--text-3);font-style:italic;">${_esc(f.legalBasis||'')}</div>
+    </div>`).join('');
+
+  // Suggested questions
+  document.getElementById('risk-questions-list').innerHTML = (a.suggestedQuestions||[]).map((q,i) => `
+    <div style="border-left:3px solid #1a2744;padding:10px 14px;margin-bottom:8px;background:var(--surface-2);border-radius:0 8px 8px 0;">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;">${i+1}. ${_esc(q.question||'')}</div>
+      <div style="font-size:12px;color:var(--text-3);">${_esc(q.rationale||'')}</div>
+    </div>`).join('');
+
+  // Suggested documents
+  document.getElementById('risk-docs-list').innerHTML = (a.suggestedDocuments||[]).map(d => `
+    <div style="display:flex;gap:10px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;">
+      <span style="font-size:16px;flex-shrink:0;">📄</span>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">${_esc(d.document||'')}</div>
+        <div style="font-size:12px;color:var(--text-3);">${_esc(d.rationale||'')}</div>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('risk-monitoring').textContent  = a.ongoingMonitoring || '';
+  document.getElementById('risk-disclaimer').textContent  = a.disclaimer || '';
+  document.getElementById('risk-result').style.display    = 'block';
+  document.getElementById('risk-retry-btn').style.display = 'inline-flex';
 }
 
 async function _approveFile(id) {
