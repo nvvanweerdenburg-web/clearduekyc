@@ -505,7 +505,7 @@ Please assess all risk factors thoroughly, including: geographic risk, client ty
   try {
     const message = await client.messages.create({
       model:      'claude-sonnet-4-6',
-      max_tokens: 2048,
+      max_tokens: 4096,
       system:     systemPrompt,
       messages:   [{ role: 'user', content: userPrompt }],
     });
