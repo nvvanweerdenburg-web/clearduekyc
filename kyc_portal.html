@@ -1573,8 +1573,17 @@
 
       <!-- Suggested questions -->
       <div style="margin-bottom:20px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);margin-bottom:10px;">Suggested follow-up questions</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);">Suggested follow-up questions</div>
+          <div style="font-size:11px;color:var(--text-3);">Select questions to send to the client</div>
+        </div>
         <div id="risk-questions-list"></div>
+        <div id="risk-send-questions-wrap" style="display:none;margin-top:10px;">
+          <button id="risk-send-questions-btn" onclick="sendSelectedQuestions()"
+            style="width:100%;padding:10px 20px;background:#1a2744;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+            ✉ Send selected questions to client
+          </button>
+        </div>
       </div>
 
       <!-- Suggested documents -->
@@ -3083,12 +3092,18 @@ function _renderRiskAssessment(a) {
       <div style="font-size:11px;color:var(--text-3);font-style:italic;">${_esc(f.legalBasis||'')}</div>
     </div>`).join('');
 
-  // Suggested questions
+  // Suggested questions — with checkboxes
+  document.getElementById('risk-send-questions-wrap').style.display = 'none';
   document.getElementById('risk-questions-list').innerHTML = (a.suggestedQuestions||[]).map((q,i) => `
-    <div style="border-left:3px solid #1a2744;padding:10px 14px;margin-bottom:8px;background:var(--surface-2);border-radius:0 8px 8px 0;">
-      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;">${i+1}. ${_esc(q.question||'')}</div>
-      <div style="font-size:12px;color:var(--text-3);">${_esc(q.rationale||'')}</div>
-    </div>`).join('');
+    <label style="display:flex;gap:10px;align-items:flex-start;border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:8px;cursor:pointer;background:white;">
+      <input type="checkbox" data-question="${_esc(q.question||'').replace(/"/g,'&quot;')}"
+        onchange="_updateSendQuestionsBtn()"
+        style="margin-top:3px;flex-shrink:0;width:15px;height:15px;accent-color:#1a2744;">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;">${i+1}. ${_esc(q.question||'')}</div>
+        <div style="font-size:12px;color:var(--text-3);">${_esc(q.rationale||'')}</div>
+      </div>
+    </label>`).join('');
 
   // Suggested documents
   document.getElementById('risk-docs-list').innerHTML = (a.suggestedDocuments||[]).map(d => `
@@ -3104,6 +3119,53 @@ function _renderRiskAssessment(a) {
   document.getElementById('risk-disclaimer').textContent  = a.disclaimer || '';
   document.getElementById('risk-result').style.display    = 'block';
   document.getElementById('risk-retry-btn').style.display = 'inline-flex';
+}
+
+function _updateSendQuestionsBtn() {
+  const any = [...document.querySelectorAll('#risk-questions-list input[type="checkbox"]')].some(c => c.checked);
+  document.getElementById('risk-send-questions-wrap').style.display = any ? 'block' : 'none';
+}
+
+async function sendSelectedQuestions() {
+  const checked = [...document.querySelectorAll('#risk-questions-list input[type="checkbox"]:checked')];
+  if (!checked.length) return;
+  const questions = checked.map(c => c.dataset.question);
+  const sub = _riskCurrentSub;
+  if (!sub) return;
+
+  const clientEmail = sub.email || '';
+  if (!clientEmail) { _toast('⚠ No client email on file — cannot send', 'red'); return; }
+
+  const btn = document.getElementById('risk-send-questions-btn');
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/send-questions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: clientEmail, clientName: sub.clientName, questions, submissionId: sub.id, lawyerEmail: currentUser?.email || '' }),
+    });
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error || 'Server error'); }
+
+    // Save to Firestore non-blocking
+    if (db && sub.id) {
+      db.collection('submissions').doc(sub.id).update({
+        additionalQuestions: firebase.firestore.FieldValue.arrayUnion(...questions.map(q => ({ question: q, sentAt: new Date().toISOString(), sentBy: currentUser?.email || '' }))),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      }).catch(e => console.warn('Could not save questions to Firestore:', e.message));
+    }
+
+    _toast('✓ Questions sent to ' + clientEmail);
+    btn.textContent = '✓ Sent';
+    // Uncheck all
+    document.querySelectorAll('#risk-questions-list input[type="checkbox"]').forEach(c => c.checked = false);
+    document.getElementById('risk-send-questions-wrap').style.display = 'none';
+  } catch(e) {
+    _toast('⚠ Failed to send: ' + e.message, 'red');
+    btn.textContent = '✉ Send selected questions to client';
+    btn.disabled = false;
+  }
 }
 
 async function _approveFile(id) {

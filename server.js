@@ -418,6 +418,60 @@ app.post('/api/check-sanctions', (req, res) => {
   res.json({ hits, checked: names.length, listSize: _sanctionsNames?.length || 0 });
 });
 
+// ── POST /api/send-questions ──────────────────────────────────────────────────
+app.post('/api/send-questions', async (req, res) => {
+  const { to, clientName, questions, lawyerEmail } = req.body;
+  if (!to)                         return res.status(400).json({ error: 'Missing recipient email' });
+  if (!Array.isArray(questions) || !questions.length) return res.status(400).json({ error: 'No questions provided' });
+
+  const questionRows = questions.map((q, i) =>
+    `<tr><td style="padding:10px 14px;border-bottom:1px solid #e2e5ec;vertical-align:top;font-size:13px;color:#374151;font-weight:600;">${i+1}.</td>
+     <td style="padding:10px 14px;border-bottom:1px solid #e2e5ec;font-size:13px;color:#374151;line-height:1.6;">${q.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td></tr>`
+  ).join('');
+
+  const html = `<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#f7f8fa;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0"
+      style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+      <tr><td style="background:#1a2744;padding:24px 32px;">
+        <span style="font-size:18px;font-weight:700;color:white;letter-spacing:-0.3px;">&#9679;&nbsp; ClearDue Legal B.V.</span>
+      </td></tr>
+      <tr><td style="padding:32px;">
+        <p style="font-size:15px;font-weight:600;color:#0e1624;margin:0 0 16px;">Additional information required</p>
+        <p style="font-size:14px;color:#4a5568;line-height:1.7;margin:0 0 20px;">
+          Dear ${clientName || 'Client'},<br><br>
+          As part of our client due diligence process under the Wwft, we require some additional
+          information from you. Please reply to this email with your answers to the questions below.
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0"
+          style="border:1px solid #e2e5ec;border-radius:10px;overflow:hidden;margin-bottom:24px;">
+          ${questionRows}
+        </table>
+        <div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px 18px;margin-bottom:24px;">
+          <p style="font-size:13px;color:#1e40af;font-weight:600;margin:0 0 4px;">How to respond</p>
+          <p style="font-size:13px;color:#1e3a8a;margin:0;">Please reply directly to this email with your answers. You may also contact us at info@cleardue.legal.</p>
+        </div>
+        <p style="font-size:13px;color:#8a94a6;border-top:1px solid #e2e5ec;padding-top:20px;margin:0;">
+          ClearDue Legal B.V. &middot; Herengracht 400, 1017 BX Amsterdam &middot; info@cleardue.legal<br>
+          ${lawyerEmail ? `This request was sent by ${lawyerEmail}.` : ''}
+        </p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+
+  try {
+    await sendEmail({ to, subject: 'Additional information required for your KYC file — ClearDue Legal B.V.', html });
+    res.json({ ok: true });
+  } catch(e) {
+    console.error('[Email] Send questions failed:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── POST /api/risk-assessment ─────────────────────────────────────────────────
 app.post('/api/risk-assessment', async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
