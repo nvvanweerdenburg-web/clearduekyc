@@ -917,6 +917,42 @@
 </head>
 <body>
 
+<!-- ========== FULL-PAGE AUTH GATE ========== -->
+<div id="auth-gate" style="display:flex;position:fixed;inset:0;background:var(--brand);z-index:1000;align-items:center;justify-content:center;flex-direction:column;padding:24px;">
+  <div style="text-align:center;margin-bottom:36px;">
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px;">
+      <div style="width:10px;height:10px;border-radius:50%;background:var(--accent);"></div>
+      <div style="font-size:26px;font-weight:700;color:white;letter-spacing:-0.5px;">ClearDue</div>
+    </div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.45);letter-spacing:0.4px;">KYC Compliance Portal · Netherlands</div>
+  </div>
+  <div style="background:white;border-radius:16px;padding:36px 32px;width:100%;max-width:400px;box-shadow:0 24px 64px rgba(0,0,0,0.35);">
+    <div style="font-size:20px;font-weight:600;color:var(--brand);margin-bottom:4px;letter-spacing:-0.3px;">Sign in</div>
+    <div style="font-size:13px;color:var(--text-3);margin-bottom:28px;">Access is restricted to authorised users</div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);margin-bottom:6px;">Email</label>
+      <input type="email" id="gate-email" placeholder="name@cleardue.legal" autocomplete="username"
+        style="width:100%;padding:11px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;color:var(--text);box-sizing:border-box;transition:border 0.15s,box-shadow 0.15s;"
+        onfocus="this.style.borderColor='var(--brand-mid)';this.style.boxShadow='0 0 0 3px rgba(45,74,143,0.12)'"
+        onblur="this.style.borderColor='var(--border-strong)';this.style.boxShadow='none'">
+    </div>
+    <div style="margin-bottom:6px;">
+      <label style="display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);margin-bottom:6px;">Password</label>
+      <input type="password" id="gate-password" autocomplete="current-password"
+        style="width:100%;padding:11px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;color:var(--text);box-sizing:border-box;transition:border 0.15s,box-shadow 0.15s;"
+        onfocus="this.style.borderColor='var(--brand-mid)';this.style.boxShadow='0 0 0 3px rgba(45,74,143,0.12)'"
+        onblur="this.style.borderColor='var(--border-strong)';this.style.boxShadow='none'"
+        onkeydown="if(event.key==='Enter') gateLogin()">
+    </div>
+    <div id="gate-error" style="font-size:12px;color:var(--red);min-height:22px;margin-bottom:10px;"></div>
+    <button id="gate-btn" onclick="gateLogin()"
+      style="width:100%;background:var(--brand);color:white;border:none;border-radius:var(--radius);padding:13px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:-0.2px;transition:background 0.15s,transform 0.1s;">
+      Sign in →
+    </button>
+    <div style="text-align:center;font-size:11px;color:var(--text-3);margin-top:18px;">Wwft-compliant client identification</div>
+  </div>
+</div>
+
 <nav class="topnav">
   <div class="topnav-logo">
     <div class="dot"></div>
@@ -1391,8 +1427,8 @@
             <td><span class="badge badge-amber">2 sent</span></td>
             <td style="color:var(--text-3);font-size:12px">2 days ago</td>
             <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-              <button class="send-reminder-btn" onclick="event.stopPropagation(); alert('Reminder sent to jan.devries@email.nl')">Send reminder</button>
-              <button class="eng-toggle" onclick="event.stopPropagation(); openEngModal('Jan de Vries','jan.devries@email.nl','Real estate transaction')">&#9993; Send engagement letter</button>
+              <button class="send-reminder-btn" onclick="event.stopPropagation(); sendReminderEmail(currentUser?.email||'jan.devries@email.nl','Jan de Vries')">Send reminder</button>
+              <button class="eng-toggle" onclick="event.stopPropagation(); openEngModal('Jan de Vries',currentUser?.email||'jan.devries@email.nl','Real estate transaction')">&#9993; Send engagement letter</button>
             </td>
           </tr>
           <tr id="d1-row"><td colspan="9" style="padding:0; background:var(--surface-2)">
@@ -1510,8 +1546,8 @@
             <td><span class="badge badge-red">3 sent</span></td>
             <td style="color:var(--text-3);font-size:12px">Today</td>
             <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-              <button class="send-reminder-btn" onclick="event.stopPropagation(); alert('Reminder sent to contact@acme.nl')">Send reminder</button>
-              <button class="eng-toggle" onclick="event.stopPropagation(); openEngModal('Acme Holding BV','contact@acme.nl','M&A transaction')">&#9993; Send engagement letter</button>
+              <button class="send-reminder-btn" onclick="event.stopPropagation(); sendReminderEmail(currentUser?.email||'contact@acme.nl','Acme Holding BV')">Send reminder</button>
+              <button class="eng-toggle" onclick="event.stopPropagation(); openEngModal('Acme Holding BV',currentUser?.email||'contact@acme.nl','M&A transaction')">&#9993; Send engagement letter</button>
             </td>
           </tr>
           <tr id="d2-row"><td colspan="9" style="padding:0; background:var(--surface-2)">
@@ -1643,8 +1679,8 @@
             <td><span class="badge badge-amber">1 sent</span></td>
             <td style="color:var(--text-3);font-size:12px">1 day ago</td>
             <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-              <button class="send-reminder-btn" onclick="alert('Reminder sent to horizon@capital.nl')">Send reminder</button>
-              <button class="eng-toggle" onclick="openEngModal('Horizon Capital NV','horizon@capital.nl','Corporate structuring')">&#9993; Send engagement letter</button>
+              <button class="send-reminder-btn" onclick="sendReminderEmail(currentUser?.email||'horizon@capital.nl','Horizon Capital NV')">Send reminder</button>
+              <button class="eng-toggle" onclick="openEngModal('Horizon Capital NV',currentUser?.email||'horizon@capital.nl','Corporate structuring')">&#9993; Send engagement letter</button>
             </td>
           </tr>
         </tbody>
@@ -2273,13 +2309,23 @@ async function initFirebase() {
 
     auth.onAuthStateChanged(user => {
       currentUser = user;
-      const display = document.getElementById('user-display');
+      const gate     = document.getElementById('auth-gate');
+      const display  = document.getElementById('user-display');
       const logoutBtn = document.getElementById('logout-btn');
       if (user) {
+        if (gate) gate.style.display = 'none';
         if (display) display.textContent = user.email;
         if (logoutBtn) logoutBtn.style.display = 'inline-block';
-        document.getElementById('login-modal').classList.remove('active');
+        // MVP: pre-fill the KYC form email with the signed-in user's address
+        // so reminders and the engagement letter go to the real tester inbox
+        setTimeout(() => {
+          const ef = document.getElementById('f-email');
+          if (ef && !ef.value) ef.value = user.email;
+          const ce = document.getElementById('f-contact-email');
+          if (ce && !ce.value) ce.value = user.email;
+        }, 150);
       } else {
+        if (gate) gate.style.display = 'flex';
         if (display) display.textContent = '';
         if (logoutBtn) logoutBtn.style.display = 'none';
       }
@@ -2327,23 +2373,33 @@ function lawyerLogout() {
   });
 }
 
-// Intercept lawyer dashboard nav click to require auth
+// ===== Auth gate login =====
+function gateLogin() {
+  if (!auth) { document.getElementById('gate-error').textContent = 'Authentication unavailable — Firebase not configured.'; return; }
+  const email    = document.getElementById('gate-email').value.trim();
+  const password = document.getElementById('gate-password').value;
+  const errEl    = document.getElementById('gate-error');
+  const btn      = document.getElementById('gate-btn');
+  errEl.textContent = '';
+  if (!email || !password) { errEl.textContent = 'Please enter your email and password.'; return; }
+  btn.textContent = 'Signing in…'; btn.disabled = true;
+  auth.signInWithEmailAndPassword(email, password)
+    .then(() => { btn.textContent = 'Sign in →'; btn.disabled = false; })
+    .catch(err => {
+      btn.textContent = 'Sign in →'; btn.disabled = false;
+      errEl.textContent = (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found')
+        ? 'Invalid email or password.' : err.message;
+    });
+}
+
+// Entire app is behind the auth gate — both tabs accessible once signed in
 const _origSwitchView = window.switchView;
 window.switchView = function(v) {
-  if (v === 'lawyer') {
-    if (!currentUser) {
-      document.getElementById('login-modal').classList.add('active');
-      setTimeout(() => document.getElementById('login-email').focus(), 100);
-      return;
-    }
-    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
-    document.getElementById('view-lawyer').classList.add('active');
-    if (event && event.target) event.target.classList.add('active');
-    loadDashboard();
-    return;
-  }
-  _origSwitchView(v);
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-' + v).classList.add('active');
+  if (event && event.target) event.target.classList.add('active');
+  if (v === 'lawyer') loadDashboard();
 };
 
 // ===== Firestore: Lawyer dashboard =====
@@ -2408,6 +2464,7 @@ function renderDashboard(subs) {
         <td>—</td>
         <td style="color:var(--text-3);font-size:12px">${ago}</td>
         <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button class="send-reminder-btn" onclick="event.stopPropagation();sendReminderEmail('${email}','${name}')">Send reminder</button>
           <button class="eng-toggle" onclick="event.stopPropagation();openEngModal('${name}','${email}','${service}','${sub.id}')">&#9993; Send engagement letter</button>
         </td>
       </tr>
@@ -2565,12 +2622,13 @@ window.openEngModal = function(name, email, service, submissionId) {
   document.getElementById('eng-modal').classList.add('active');
 };
 
-// Override sendEngLetter to save to Firestore
+// Override sendEngLetter — saves to Firestore + sends real email to client
 const _origSendEngLetter = window.sendEngLetter;
 window.sendEngLetter = async function() {
   closeEngModal();
   document.getElementById('client-letter-content').innerHTML = window._pendingEngLetter || '';
 
+  // 1. Save to Firestore
   if (db) {
     try {
       const ref = await db.collection('engagement_letters').add({
@@ -2587,7 +2645,6 @@ window.sendEngLetter = async function() {
         sentAt:          firebase.firestore.FieldValue.serverTimestamp(),
       });
       _currentLetterId = ref.id;
-
       if (engClient.submissionId) {
         await db.collection('submissions').doc(engClient.submissionId).update({
           engagementLetterSent: true,
@@ -2596,6 +2653,19 @@ window.sendEngLetter = async function() {
       }
     } catch(e) { console.error('Save letter error:', e); }
   }
+
+  // 2. Send real email via backend
+  try {
+    await fetch('/api/send-engagement-letter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to:         engClient.email,
+        clientName: engClient.name,
+        letterHTML: window._pendingEngLetter || '',
+      }),
+    });
+  } catch(e) { console.error('Email send error:', e); }
 
   _toast('✓ Engagement letter sent to ' + engClient.email);
   setTimeout(() => {
@@ -2606,6 +2676,26 @@ window.sendEngLetter = async function() {
     document.getElementById('client-letter-modal').classList.add('active');
   }, 600);
 };
+
+// ===== Real email: send reminder =====
+async function sendReminderEmail(email, clientName) {
+  try {
+    const res = await fetch('/api/send-reminder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: email, clientName }),
+    });
+    if (res.ok) {
+      _toast('✓ Reminder sent to ' + email);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      _toast('⚠ Reminder failed: ' + (err.error || 'server error'));
+    }
+  } catch(e) {
+    console.error('Reminder error:', e);
+    _toast('⚠ Could not send reminder — check server logs');
+  }
+}
 
 // Override countersignLetter to update Firestore
 window.countersignLetter = async function() {
