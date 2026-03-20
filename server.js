@@ -437,7 +437,9 @@ app.post('/api/risk-assessment', async (req, res) => {
 
 Your task: produce a structured CDD/risk assessment for a KYC file at a Dutch law firm. Be specific — reference actual legal provisions and Leidraad sections. Be concise but substantive. Always mention the legal basis.
 
-Return ONLY valid JSON (no markdown, no code fences) with this exact structure:
+IMPORTANT: Your entire response must be a single valid JSON object. Do not include any text, explanation, markdown, or code fences before or after the JSON. Start your response with { and end with }. This is critical — any non-JSON output will break the system.
+
+Return a JSON object with this exact structure:
 {
   "overallRisk": "high" | "medium" | "low",
   "riskJustification": "2-3 sentence summary of overall risk verdict",
@@ -503,25 +505,26 @@ DOCUMENTS UPLOADED
 Please assess all risk factors thoroughly, including: geographic risk, client type risk, PEP/UBO risk, transaction type risk, service-specific risk indicators from the Leidraad Wwft, and any unusual patterns. Suggest specific follow-up questions and documents proportionate to the risk level identified.`;
 
   try {
-    // Prefill assistant turn with '{' — forces pure JSON output, no markdown or prose wrapping
     const message = await client.messages.create({
       model:      'claude-sonnet-4-6',
       max_tokens: 4096,
       system:     systemPrompt,
-      messages:   [
-        { role: 'user',      content: userPrompt },
-        { role: 'assistant', content: '{' },
-      ],
+      messages:   [{ role: 'user', content: userPrompt }],
     });
 
-    // The model continues from '{' — prepend it back
-    const raw        = '{' + (message.content[0]?.text || '');
+    const raw        = message.content[0]?.text || '';
     const stopReason = message.stop_reason;
     if (stopReason === 'max_tokens') {
-      console.error('[RiskAssessment] Response truncated — increase max_tokens or shorten prompt');
+      console.error('[RiskAssessment] Response truncated');
       return res.status(500).json({ error: 'Assessment was too long to complete — please try again.' });
     }
-    const assessment = JSON.parse(raw);
+    const start = raw.indexOf('{');
+    const end   = raw.lastIndexOf('}');
+    if (start === -1 || end === -1) {
+      console.error('[RiskAssessment] No JSON found in response:', raw.substring(0, 200));
+      return res.status(500).json({ error: 'AI did not return a valid assessment — please try again.' });
+    }
+    const assessment = JSON.parse(raw.slice(start, end + 1));
     res.json({ assessment });
   } catch(e) {
     console.error('[RiskAssessment] Error:', e.message);
