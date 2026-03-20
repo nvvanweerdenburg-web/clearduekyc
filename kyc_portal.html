@@ -1340,7 +1340,7 @@
         <div style="font-size: 12px; color: var(--text-3); margin-top: 2px;">Wwft compliance portal · Netherlands</div>
       </div>
       <div style="display:flex; gap:8px;">
-        <button class="btn-sm" onclick="openNewFile()">+ New client file</button>
+        <button class="btn-sm" onclick="openInviteModal()">+ New client</button>
         <button class="btn-sm primary">Export report</button>
       </div>
     </div>
@@ -1691,6 +1691,33 @@
 </div>
 
 <!-- Engagement questionnaire modal -->
+<!-- ========== INVITE CLIENT MODAL ========== -->
+<div class="modal-overlay" id="invite-modal">
+  <div class="modal-box" style="max-width:460px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Invite new client</div>
+        <div class="modal-sub">Send the client a link to complete their KYC file</div>
+      </div>
+      <button class="modal-close" onclick="closeInviteModal()">✕</button>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Client email address</label>
+      <input type="email" id="invite-email" placeholder="client@example.com"
+        style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;color:var(--text);box-sizing:border-box;"
+        onkeydown="if(event.key==='Enter') sendClientInvite()">
+      <div style="margin-top:8px;padding:10px 12px;background:#fef9ec;border:1px solid #f5d97a;border-radius:8px;font-size:12px;color:#92690a;line-height:1.5;">
+        ⚠ <strong>Test environment.</strong> Please only enter your own email address or the email address of another tester.
+      </div>
+    </div>
+    <div id="invite-error" style="font-size:12px;color:var(--red);min-height:18px;margin-top:4px;"></div>
+    <div class="modal-actions">
+      <button class="btn-sm" onclick="closeInviteModal()">Cancel</button>
+      <button class="btn-primary" id="invite-send-btn" onclick="sendClientInvite()" style="width:auto;padding:9px 24px;font-size:13px;">✉ Send invite</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="eng-modal">
   <div class="modal-box eng-modal-wide">
     <div class="eng-steps">
@@ -2050,6 +2077,54 @@ function openNewFile() {
   switchView('client');
   document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
   document.querySelector('.nav-tab').classList.add('active');
+}
+
+/* ===== Invite client modal ===== */
+function openInviteModal() {
+  document.getElementById('invite-email').value = '';
+  document.getElementById('invite-error').textContent = '';
+  const btn = document.getElementById('invite-send-btn');
+  btn.textContent = '✉ Send invite';
+  btn.disabled = false;
+  document.getElementById('invite-modal').classList.add('active');
+  setTimeout(() => document.getElementById('invite-email').focus(), 120);
+}
+
+function closeInviteModal() {
+  document.getElementById('invite-modal').classList.remove('active');
+}
+
+async function sendClientInvite() {
+  const email = document.getElementById('invite-email').value.trim();
+  const errEl = document.getElementById('invite-error');
+  const btn = document.getElementById('invite-send-btn');
+  errEl.textContent = '';
+  if (!email || !email.includes('@')) {
+    errEl.textContent = 'Please enter a valid email address.';
+    return;
+  }
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/invite-client', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: email, invitedBy: currentUser?.email || 'ClearDue Legal' })
+    });
+    if (res.ok) {
+      closeInviteModal();
+      _toast('✓ Invite sent to ' + email);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      errEl.textContent = data.error || 'Failed to send invite.';
+      btn.textContent = '✉ Send invite';
+      btn.disabled = false;
+    }
+  } catch(e) {
+    errEl.textContent = 'Network error — please try again.';
+    btn.textContent = '✉ Send invite';
+    btn.disabled = false;
+  }
 }
 
 /* ===== Engagement questionnaire ===== */

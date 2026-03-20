@@ -155,6 +155,76 @@ app.post('/api/send-engagement-letter', async (req, res) => {
   }
 });
 
+// ── POST /api/invite-client ───────────────────────────────────────────────────
+app.post('/api/invite-client', async (req, res) => {
+  const { to, invitedBy } = req.body;
+  if (!to) return res.status(400).json({ error: 'Missing recipient email' });
+
+  const appUrl = process.env.APP_URL || 'https://clearduekyc-production.up.railway.app';
+  const t = getTransporter();
+  if (!t) {
+    console.log(`[Email] GMAIL not configured — skipped invite to: ${to}`);
+    return res.json({ ok: true, skipped: true });
+  }
+  try {
+    await t.sendMail({
+      from:    `ClearDue Legal <${process.env.GMAIL_USER}>`,
+      to,
+      subject: 'You have been invited to complete your KYC — ClearDue Legal B.V.',
+      html:    inviteEmailHTML(to, invitedBy, appUrl),
+    });
+    console.log(`[Email] Invite sent to ${to}`);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[Email] Invite failed:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+function inviteEmailHTML(to, invitedBy, appUrl) {
+  return `<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#f7f8fa;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0"
+      style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+      <tr><td style="background:#1a2744;padding:24px 32px;">
+        <span style="font-size:18px;font-weight:700;color:white;letter-spacing:-0.3px;">&#9679;&nbsp; ClearDue Legal B.V.</span>
+      </td></tr>
+      <tr><td style="padding:32px;">
+        <p style="font-size:15px;font-weight:600;color:#0e1624;margin:0 0 16px;">You have been invited to submit your KYC documents</p>
+        <p style="font-size:14px;color:#4a5568;line-height:1.7;margin:0 0 16px;">
+          <strong>ClearDue Legal B.V.</strong> has invited you to complete your Know Your Client (KYC)
+          identification. This is required under Dutch law (<em>Wwft</em>) before we can commence any
+          legal work on your behalf.
+        </p>
+        <p style="font-size:14px;color:#4a5568;line-height:1.7;margin:0 0 28px;">
+          Click the button below to access the secure portal and complete your file.
+          The process takes approximately 5 minutes.
+        </p>
+        <div style="text-align:center;margin:0 0 28px;">
+          <a href="${appUrl}"
+            style="display:inline-block;background:#1a2744;color:white;text-decoration:none;
+                   padding:14px 36px;border-radius:10px;font-size:14px;font-weight:600;letter-spacing:-0.2px;">
+            Complete my KYC file &rarr;
+          </a>
+        </div>
+        <p style="font-size:12px;color:#8a94a6;line-height:1.6;margin:0 0 20px;">
+          If the button doesn&rsquo;t work, copy and paste this link into your browser:<br>
+          <a href="${appUrl}" style="color:#1a2744;">${appUrl}</a>
+        </p>
+        <p style="font-size:11px;color:#b0b8c6;border-top:1px solid #e2e5ec;padding-top:16px;margin:0;">
+          ClearDue Legal B.V. &middot; Herengracht 400, 1017 BX Amsterdam &middot; info@cleardue.legal<br>
+          KvK: 80123456 &middot; BTW: NL003456789B01<br>
+          This invitation was sent by ${invitedBy || 'ClearDue Legal'}.
+        </p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+}
+
 // ── Catch-all → SPA ──────────────────────────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'kyc_portal.html'));
