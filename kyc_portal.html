@@ -1493,6 +1493,33 @@
   </div>
 </div>
 
+<!-- ========== SCOPE CONFIRMATION MODAL (client) ========== -->
+<div class="modal-overlay" id="scope-confirm-modal">
+  <div class="modal-box" style="max-width:560px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Scope of engagement</div>
+        <div class="modal-sub">Please review the proposed scope of work and confirm or submit comments</div>
+      </div>
+    </div>
+    <div style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:10px;">Proposed scope of work</div>
+      <div id="scope-display-text" style="font-size:14px;color:var(--text);line-height:1.75;white-space:pre-wrap;"></div>
+    </div>
+    <div id="scope-comment-wrap" style="display:none;margin-bottom:4px;">
+      <label class="modal-label">Your comments or requested amendments</label>
+      <textarea id="scope-comment-input" rows="4"
+        placeholder="Describe what should be changed, clarified, or added to the scope…"
+        style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:13.5px;color:var(--text);box-sizing:border-box;resize:vertical;line-height:1.6;"></textarea>
+    </div>
+    <div id="scope-modal-error" style="font-size:12px;color:var(--red);min-height:18px;margin-bottom:4px;"></div>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button id="scope-toggle-comment-btn" class="btn-sm" onclick="toggleScopeComment()">+ I have comments</button>
+      <button id="scope-confirm-btn" class="btn-primary" onclick="submitScopeResponse()" style="width:auto;padding:9px 24px;font-size:13px;">✓ Confirm — this is correct</button>
+    </div>
+  </div>
+</div>
+
 <!-- ========== INVITE CLIENT MODAL ========== -->
 <div class="modal-overlay" id="invite-modal">
   <div class="modal-box" style="max-width:460px;">
@@ -1507,10 +1534,17 @@
       <label class="modal-label">Client email address</label>
       <input type="email" id="invite-email" placeholder="client@example.com"
         style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;color:var(--text);box-sizing:border-box;"
-        onkeydown="if(event.key==='Enter') sendClientInvite()">
+        onkeydown="if(event.key==='Enter') document.getElementById('invite-scope').focus()">
       <div style="margin-top:8px;padding:10px 12px;background:#fef9ec;border:1px solid #f5d97a;border-radius:8px;font-size:12px;color:#92690a;line-height:1.5;">
         ⚠ <strong>Test environment.</strong> Please only enter your own email address or the email address of another tester.
       </div>
+    </div>
+    <div class="modal-field" style="margin-top:14px;">
+      <label class="modal-label">Scope of work <span style="color:var(--red)">*</span></label>
+      <textarea id="invite-scope" rows="5"
+        placeholder="e.g. Legal advice and representation in connection with the acquisition of a residential property at Keizersgracht 123, Amsterdam, including due diligence, purchase agreement review, and notarial coordination."
+        style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:13.5px;color:var(--text);box-sizing:border-box;resize:vertical;line-height:1.6;"></textarea>
+      <div style="font-size:11px;color:var(--text-3);margin-top:5px;">The client will see this and must confirm or submit comments before completing their KYC file.</div>
     </div>
     <div id="invite-error" style="font-size:12px;color:var(--red);min-height:18px;margin-top:4px;"></div>
     <div class="modal-actions">
@@ -1884,6 +1918,7 @@ function openNewFile() {
 /* ===== Invite client modal ===== */
 function openInviteModal() {
   document.getElementById('invite-email').value = '';
+  document.getElementById('invite-scope').value = '';
   document.getElementById('invite-error').textContent = '';
   const btn = document.getElementById('invite-send-btn');
   btn.textContent = '✉ Send invite';
@@ -1898,20 +1933,29 @@ function closeInviteModal() {
 
 async function sendClientInvite() {
   const email = document.getElementById('invite-email').value.trim();
+  const scope = document.getElementById('invite-scope').value.trim();
   const errEl = document.getElementById('invite-error');
-  const btn = document.getElementById('invite-send-btn');
+  const btn   = document.getElementById('invite-send-btn');
   errEl.textContent = '';
-  if (!email || !email.includes('@')) {
-    errEl.textContent = 'Please enter a valid email address.';
-    return;
-  }
+  if (!email || !email.includes('@')) { errEl.textContent = 'Please enter a valid email address.'; return; }
+  if (!scope) { errEl.textContent = 'Please enter the scope of work — the client must confirm it.'; return; }
   btn.textContent = 'Sending…';
   btn.disabled = true;
   try {
+    // Save invite (with scope) to Firestore so client sees it on login
+    if (db) {
+      await db.collection('invites').add({
+        email, scopeOfWork: scope,
+        invitedBy: currentUser?.email || 'ClearDue Legal',
+        status: 'pending',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    // Send invite email (includes scope preview)
     const res = await fetch('/api/invite-client', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: email, invitedBy: currentUser?.email || 'ClearDue Legal' })
+      body: JSON.stringify({ to: email, invitedBy: currentUser?.email || 'ClearDue Legal', scopeOfWork: scope })
     });
     if (res.ok) {
       closeInviteModal();
@@ -1927,6 +1971,95 @@ async function sendClientInvite() {
     btn.textContent = '✉ Send invite';
     btn.disabled = false;
   }
+}
+
+/* ===== Scope of work — client confirmation ===== */
+let _pendingInviteId   = null;
+let _pendingInviteData = null;
+
+async function checkForPendingInvite(email) {
+  if (!db || !email) return;
+  try {
+    const snap = await db.collection('invites')
+      .where('email', '==', email)
+      .where('status', '==', 'pending')
+      .orderBy('createdAt', 'desc')
+      .limit(1)
+      .get();
+    if (!snap.empty) {
+      _pendingInviteId   = snap.docs[0].id;
+      _pendingInviteData = snap.docs[0].data();
+      showScopeConfirmModal(_pendingInviteData.scopeOfWork || '');
+    }
+  } catch(e) { console.error('Invite check:', e); }
+}
+
+function showScopeConfirmModal(scope) {
+  document.getElementById('scope-display-text').textContent = scope;
+  document.getElementById('scope-comment-wrap').style.display = 'none';
+  document.getElementById('scope-comment-input').value = '';
+  document.getElementById('scope-toggle-comment-btn').textContent = '+ I have comments';
+  document.getElementById('scope-confirm-btn').textContent = '✓ Confirm — this is correct';
+  document.getElementById('scope-confirm-btn').disabled = false;
+  document.getElementById('scope-modal-error').textContent = '';
+  document.getElementById('scope-confirm-modal').classList.add('active');
+}
+
+function toggleScopeComment() {
+  const wrap = document.getElementById('scope-comment-wrap');
+  const btn  = document.getElementById('scope-toggle-comment-btn');
+  const open = wrap.style.display !== 'none';
+  wrap.style.display = open ? 'none' : 'block';
+  btn.textContent    = open ? '+ I have comments' : '− Remove comment';
+  document.getElementById('scope-confirm-btn').textContent = open ? '✓ Confirm — this is correct' : '✉ Submit comments';
+  if (!open) setTimeout(() => document.getElementById('scope-comment-input').focus(), 100);
+}
+
+async function submitScopeResponse() {
+  const commentOpen  = document.getElementById('scope-comment-wrap').style.display !== 'none';
+  const commentText  = document.getElementById('scope-comment-input').value.trim();
+  const errEl        = document.getElementById('scope-modal-error');
+  const btn          = document.getElementById('scope-confirm-btn');
+  errEl.textContent  = '';
+  if (commentOpen && !commentText) { errEl.textContent = 'Please enter your comments before submitting.'; return; }
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  const confirmed = !commentOpen;
+  window._scopeOfWork    = _pendingInviteData?.scopeOfWork || '';
+  window._scopeConfirmed = confirmed;
+  window._scopeComments  = commentOpen ? commentText : '';
+
+  if (db && _pendingInviteId) {
+    try {
+      await db.collection('invites').doc(_pendingInviteId).update({
+        status:         confirmed ? 'confirmed' : 'commented',
+        clientResponse: confirmed ? 'confirmed'  : commentText,
+        respondedAt:    firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch(e) { console.error('Scope update:', e); }
+  }
+  document.getElementById('scope-confirm-modal').classList.remove('active');
+}
+
+/* ===== Risk assessment helpers ===== */
+function assessScopeRisk(scope) {
+  if (!scope) return 'low';
+  const s = scope.toLowerCase();
+  const HIGH = ['crypto','bitcoin','blockchain','nft','offshore','shell company','shell corp',
+    'gaming','casino','gambling','cannabis','marijuana','weapon','arms dealer','sanction',
+    'iran','north korea','venezuela','syria','myanmar','political exposed','terror','laundering'];
+  const MED  = ['real estate','property','acquisition','merger','m&a','investment fund',
+    'private equity','trust','cross-border','international transfer','asset transfer',
+    'corporate restructuring','holding','nominee'];
+  if (HIGH.some(t => s.includes(t))) return 'high';
+  if (MED.some(t => s.includes(t)))  return 'medium';
+  return 'low';
+}
+
+function combineRisk(...levels) {
+  if (levels.includes('high'))   return 'high';
+  if (levels.includes('medium')) return 'medium';
+  return 'low';
 }
 
 /* ===== Committee referral ===== */
@@ -2314,14 +2447,15 @@ async function initFirebase() {
         if (gate) gate.style.display = 'none';
         if (display) display.textContent = user.email;
         if (logoutBtn) logoutBtn.style.display = 'inline-block';
-        // MVP: pre-fill the KYC form email with the signed-in user's address
-        // so reminders and the engagement letter go to the real tester inbox
+        // Pre-fill the KYC form email with the signed-in user's address
         setTimeout(() => {
           const ef = document.getElementById('f-email');
           if (ef && !ef.value) ef.value = user.email;
           const ce = document.getElementById('f-contact-email');
           if (ce && !ce.value) ce.value = user.email;
         }, 150);
+        // Check if this user has a pending invite with a scope of work to confirm
+        setTimeout(() => checkForPendingInvite(user.email), 400);
       } else {
         if (gate) gate.style.display = 'flex';
         if (display) display.textContent = '';
@@ -2525,11 +2659,26 @@ function renderDashboard(subs) {
               <button class="btn-sm primary" onclick="_approveFile('${sub.id}')">Approve file</button>
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;font-size:13px;color:var(--text-2);">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;font-size:13px;color:var(--text-2);margin-bottom:16px;">
             <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:6px;">Client</div><div>${name}</div><div style="color:var(--text-3)">${email}</div></div>
             <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:6px;">Service</div><div>${service}</div></div>
             <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:6px;">Submitted</div><div>${sub.createdAt ? sub.createdAt.toDate().toLocaleDateString('nl-NL') : '—'}</div><div style="color:var(--text-3)">${docCount}/${totalDocs} docs uploaded</div></div>
           </div>
+          ${sub.scopeOfWork ? `
+          <div style="border:1px solid var(--border);border-radius:10px;padding:16px 18px;font-size:13px;">
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:8px;">Scope of work</div>
+            <div style="color:var(--text);line-height:1.7;white-space:pre-wrap;margin-bottom:10px;">${_esc(sub.scopeOfWork)}</div>
+            <div style="display:flex;align-items:center;gap:8px;padding-top:10px;border-top:1px solid var(--border);">
+              <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);">Client response:</span>
+              ${sub.scopeConfirmed === true
+                ? `<span style="font-size:12px;color:var(--green);font-weight:600;">✓ Confirmed correct</span>`
+                : sub.scopeComments
+                  ? `<span style="font-size:12px;color:#b45309;font-weight:600;">⚠ Comments submitted</span><span style="font-size:12px;color:var(--text-2);margin-left:4px;">"${_esc(sub.scopeComments)}"</span>`
+                  : `<span style="font-size:12px;color:var(--text-3);">Awaiting client confirmation</span>`}
+              ${assessScopeRisk(sub.scopeOfWork) === 'high' ? `<span style="margin-left:auto;font-size:11px;font-weight:700;color:#b91c1c;background:#fff1f0;border:1px solid #fca5a5;padding:2px 8px;border-radius:20px;">⚑ High-risk scope</span>` : ''}
+              ${assessScopeRisk(sub.scopeOfWork) === 'medium' ? `<span style="margin-left:auto;font-size:11px;font-weight:700;color:#b45309;background:#fffbeb;border:1px solid #fcd34d;padding:2px 8px;border-radius:20px;">Medium-risk scope</span>` : ''}
+            </div>
+          </div>` : ''}
         </div>
       </td></tr>`;
   }).join('');
@@ -2587,12 +2736,20 @@ window.submitForm = async function() {
     const riskCountry = clientType === 'natural'
       ? document.getElementById('f-country')?.value
       : document.getElementById('f-inc-country')?.value;
-    const risk = HIGH_RISK_COUNTRIES.includes(riskCountry) ? 'high' : 'medium';
+    const isPEP = document.querySelector('input[name="pep"]:checked')?.value === 'yes';
+    const countryRisk = HIGH_RISK_COUNTRIES.includes(riskCountry) ? 'high' : 'low';
+    const scopeRisk   = assessScopeRisk(window._scopeOfWork || '');
+    const pepRisk     = isPEP ? 'high' : 'low';
+    const risk        = combineRisk(countryRisk, scopeRisk, pepRisk);
+    const status      = risk === 'high' ? 'high_risk_review' : 'incomplete';
 
     if (db) {
       const subRef = await db.collection('submissions').add({
         clientType, clientName: fd.name, email: fd.email, service: fd.service,
-        formData: fd, status: 'incomplete', risk, docs: {},
+        formData: fd, status, risk, docs: {},
+        scopeOfWork:    window._scopeOfWork    || '',
+        scopeConfirmed: window._scopeConfirmed ?? null,
+        scopeComments:  window._scopeComments  || '',
         totalDocs: Object.keys(uploadedFiles).length || 2,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),

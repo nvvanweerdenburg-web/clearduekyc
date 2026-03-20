@@ -172,11 +172,11 @@ app.post('/api/send-engagement-letter', async (req, res) => {
 
 // ── POST /api/invite-client ───────────────────────────────────────────────────
 app.post('/api/invite-client', async (req, res) => {
-  const { to, invitedBy } = req.body;
+  const { to, invitedBy, scopeOfWork } = req.body;
   if (!to) return res.status(400).json({ error: 'Missing recipient email' });
   const appUrl = process.env.APP_URL || 'https://clearduekyc-production.up.railway.app';
   try {
-    await sendEmail({ to, subject: 'You have been invited to complete your KYC — ClearDue Legal B.V.', html: inviteEmailHTML(to, invitedBy, appUrl) });
+    await sendEmail({ to, subject: 'You have been invited to complete your KYC — ClearDue Legal B.V.', html: inviteEmailHTML(to, invitedBy, appUrl, scopeOfWork) });
     res.json({ ok: true });
   } catch (e) {
     console.error('[Email] Invite failed:', e.message);
@@ -184,7 +184,17 @@ app.post('/api/invite-client', async (req, res) => {
   }
 });
 
-function inviteEmailHTML(to, invitedBy, appUrl) {
+function inviteEmailHTML(to, invitedBy, appUrl, scopeOfWork) {
+  const scopeBlock = scopeOfWork ? `
+        <div style="background:#f8fafc;border:1px solid #e2e5ec;border-radius:10px;padding:18px 20px;margin-bottom:24px;">
+          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#8a94a6;margin:0 0 8px;">Proposed scope of work</p>
+          <p style="font-size:14px;color:#1a2744;line-height:1.7;margin:0;white-space:pre-wrap;">${scopeOfWork.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+          <p style="font-size:12px;color:#8a94a6;margin:10px 0 0;">You will be asked to confirm this scope or submit comments when you access the portal.</p>
+        </div>` : '';
+  // replace function body below — keep original template with scopeBlock injected
+  return _inviteEmailHTMLBody(to, invitedBy, appUrl, scopeBlock);
+}
+function _inviteEmailHTMLBody(to, invitedBy, appUrl, scopeBlock) {
   return `<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#f7f8fa;font-family:'Helvetica Neue',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px;">
@@ -201,10 +211,11 @@ function inviteEmailHTML(to, invitedBy, appUrl) {
           identification. This is required under Dutch law (<em>Wwft</em>) before we can commence any
           legal work on your behalf.
         </p>
-        <p style="font-size:14px;color:#4a5568;line-height:1.7;margin:0 0 28px;">
+        <p style="font-size:14px;color:#4a5568;line-height:1.7;margin:0 0 20px;">
           Click the button below to access the secure portal and complete your file.
           The process takes approximately 5 minutes.
         </p>
+        ${scopeBlock}
         <div style="text-align:center;margin:0 0 28px;">
           <a href="${appUrl}"
             style="display:inline-block;background:#1a2744;color:white;text-decoration:none;
