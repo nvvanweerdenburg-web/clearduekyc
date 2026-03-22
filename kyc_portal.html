@@ -3003,17 +3003,15 @@ function loadDashboard() {
   if (_unsubDash) _unsubDash();
   _unsubDash = db.collection('submissions')
     .orderBy('createdAt', 'desc')
-    .onSnapshot(async snap => {
+    .onSnapshot(snap => {
       const subs = [];
       snap.forEach(doc => subs.push({ id: doc.id, ...doc.data() }));
-      // Merge demo subs (prepend, so they always appear)
       const all = [..._DEMO_SUBS, ...subs];
-      _dashSubs = all; // cache for risk assessment lookups
-      // Render immediately (may not have sanctions data yet)
+      _dashSubs = all;
+      // Render immediately — sanctions badges appear once check completes
       renderDashboard(all);
-      // Run sanctions check for real subs only
-      await runSanctionsCheck(subs);
-      renderDashboard(all); // re-render with sanctions data
+      // Non-blocking: run sanctions check in background, re-render when done
+      runSanctionsCheck(subs).then(() => renderDashboard(all)).catch(() => {});
     }, err => console.error('Firestore:', err));
 }
 
