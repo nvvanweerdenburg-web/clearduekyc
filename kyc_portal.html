@@ -1026,8 +1026,8 @@
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <div class="nav-tabs">
-      <button class="nav-tab active" onclick="switchView('client')">Client Portal</button>
-      <button class="nav-tab" onclick="switchView('lawyer')">Dashboard</button>
+      <button class="nav-tab" onclick="switchView('client')" style="display:none;">Client Portal</button>
+      <button class="nav-tab active" onclick="switchView('lawyer')">Dashboard</button>
     </div>
     <span id="user-display" style="font-size:12px;color:rgba(255,255,255,0.55);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
     <button id="logout-btn" onclick="lawyerLogout()" style="display:none;font-size:12px;color:rgba(255,255,255,0.55);background:none;border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:inherit;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.55)'">Sign out</button>
@@ -1035,7 +1035,7 @@
 </nav>
 
 <!-- ========== CLIENT PORTAL VIEW ========== -->
-<div id="view-client" class="view active">
+<div id="view-client" class="view">
   <div class="client-wrapper">
 
     <div class="client-header">
@@ -1378,7 +1378,7 @@
 </div>
 
 <!-- ========== LAWYER DASHBOARD VIEW ========== -->
-<div id="view-lawyer" class="view">
+<div id="view-lawyer" class="view active">
   <div class="dash-wrapper">
 
     <div class="dash-topbar">
