@@ -3001,14 +3001,17 @@ _sanctionsCache['demo_004'] = { hits: [] };
 function loadDashboard() {
   if (!db) return;
   if (_unsubDash) _unsubDash();
+  // Show demo clients immediately — don't wait for Firestore
+  _dashSubs = [..._DEMO_SUBS];
+  renderDashboard(_dashSubs);
   _unsubDash = db.collection('submissions')
     .orderBy('createdAt', 'desc')
+    .limit(50)
     .onSnapshot(snap => {
       const subs = [];
       snap.forEach(doc => subs.push({ id: doc.id, ...doc.data() }));
       const all = [..._DEMO_SUBS, ...subs];
       _dashSubs = all;
-      // Render immediately — sanctions badges appear once check completes
       renderDashboard(all);
       // Non-blocking: run sanctions check in background, re-render when done
       runSanctionsCheck(subs).then(() => renderDashboard(all)).catch(() => {});
