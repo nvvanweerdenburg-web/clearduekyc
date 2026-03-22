@@ -1452,7 +1452,6 @@
           </tr>
         </thead>
         <tbody>
-          <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-3);font-size:13px;">Loading…</td></tr>
         </tbody>
       </table>
     </div>
@@ -2999,11 +2998,11 @@ _sanctionsCache['demo_001'] = { hits: [] };
 _sanctionsCache['demo_004'] = { hits: [] };
 
 function loadDashboard() {
-  if (!db) return;
   if (_unsubDash) _unsubDash();
-  // Show demo clients immediately — don't wait for Firestore
+  // Always show demo clients immediately — no dependency on Firestore
   _dashSubs = [..._DEMO_SUBS];
   renderDashboard(_dashSubs);
+  if (!db) return;
   _unsubDash = db.collection('submissions')
     .orderBy('createdAt', 'desc')
     .limit(50)
