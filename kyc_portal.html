@@ -1443,10 +1443,10 @@
             <th>Client</th>
             <th>Type</th>
             <th>Service</th>
+            <th>Existing client</th>
             <th>Status</th>
             <th>Doc match</th>
             <th>Risk</th>
-            <th>Reminders</th>
             <th>Last activity</th>
             <th></th>
           </tr>
@@ -1619,6 +1619,33 @@
       <button class="modal-close" onclick="document.getElementById('docs-modal').classList.remove('active')">✕</button>
     </div>
     <div id="docs-modal-body" style="min-height:80px;"></div>
+  </div>
+</div>
+
+<!-- ========== EXISTING CLIENT FILE MODAL ========== -->
+<div class="modal-overlay" id="existing-client-modal">
+  <div class="modal-box" style="max-width:580px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="excl-modal-title">Existing client file</div>
+        <div class="modal-sub" id="excl-modal-sub">KYC &amp; engagement overview</div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('existing-client-modal').classList.remove('active')">✕</button>
+    </div>
+    <!-- KYC validity -->
+    <div id="excl-kyc-block" style="background:var(--green-bg);border:1px solid var(--green);border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
+      <span style="font-size:22px;">✓</span>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--green);">KYC file valid</div>
+        <div style="font-size:12px;color:var(--text-2);margin-top:2px;">Valid until: <strong id="excl-kyc-until">—</strong></div>
+      </div>
+    </div>
+    <!-- Engagement letter -->
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);margin-bottom:10px;">Existing engagement letter</div>
+    <div style="background:#0f172a;border-radius:10px;padding:24px;margin-bottom:8px;">
+      <pre id="excl-eng-letter" style="font-family:'Courier New',monospace;font-size:12px;color:#e2e8f0;line-height:1.75;margin:0;white-space:pre-wrap;word-break:break-word;">—</pre>
+    </div>
+    <div style="font-size:11px;color:var(--text-3);font-style:italic;margin-bottom:4px;">For reference only. Issue a new engagement letter for any new matter.</div>
   </div>
 </div>
 
@@ -2937,12 +2964,15 @@ function _demoDate(daysAgo) {
   return { toDate: () => d };
 }
 const _DEMO_SUBS = [
-  // 1. Natural person — standard CDD, pending review
+  // 1. Natural person — existing client, KYC valid
   {
     id: 'demo_001', _demo: true,
     clientName: 'Jan de Vries', clientType: 'natural',
     email: 'nvvanweerdenburg@gmail.com',
-    status: 'pending', risk: 'medium', service: 'Real estate',
+    status: 'approved', risk: 'low', service: 'Real estate',
+    existingClient: true,
+    kycValidUntil: '31 december 2026',
+    existingEngLetter: 'Engagement letter dated 15 januari 2025\n\nClient:          Jan de Vries\nScope of work:   Acquisition of residential property at Keizersgracht 312, Amsterdam.\n                 Purchase price €485,000. Mortgage financing via ABN AMRO.\nTimeline:        Approximately 6 weeks\nFee arrangement: Hourly — N. van Weerdenburg €350/hr (est. 12 hrs, budget €4,200 excl. VAT)\nDisbursements:   Charged separately at cost\nTeam:            N. van Weerdenburg — Partner\n\nStatus: ACCEPTED by client on 17 januari 2025',
     scopeOfWork: 'Acquisition of residential property at Keizersgracht 312, Amsterdam. Purchase price €485,000. Mortgage financing via ABN AMRO.',
     scopeConfirmed: true,
     uboName: '',
@@ -2950,12 +2980,13 @@ const _DEMO_SUBS = [
     createdAt: _demoDate(5),
     formData: { country: 'Netherlands', nationality: 'Dutch', pep: 'no', dob: '12-04-1981', bsn: true, amount: '€ 485,000' },
   },
-  // 2. Entity — UBO Roman Abramovich → sanctions hit
+  // 2. Entity — UBO Roman Abramovich → sanctions hit, new client
   {
     id: 'demo_002', _demo: true,
     clientName: 'Novus Capital B.V.', clientType: 'entity',
     email: 'nvvanweerdenburg@gmail.com',
     status: 'high_risk_review', risk: 'high', service: 'Corporate M&A',
+    existingClient: false,
     scopeOfWork: 'Acquisition of a portfolio of Dutch commercial real estate assets. Target enterprise value approx. €12 million. Client acts as acquiring vehicle.',
     scopeConfirmed: true,
     uboName: 'Roman Abramovich',
@@ -2963,12 +2994,13 @@ const _DEMO_SUBS = [
     createdAt: _demoDate(2),
     formData: { country: 'Netherlands', incCountry: 'Netherlands', legalForm: 'B.V.', kvk: '82341567', pep: 'no', ubo1: 'Roman Abramovich — 100% beneficial owner', amount: '€ 12,000,000' },
   },
-  // 3. Entity — UBO Arkadi Rotenberg → sanctions hit
+  // 3. Entity — UBO Arkadi Rotenberg → sanctions hit, new client
   {
     id: 'demo_003', _demo: true,
     clientName: 'Baltic Trade Solutions Ltd', clientType: 'entity',
     email: 'nvvanweerdenburg@gmail.com',
     status: 'incomplete', risk: 'high', service: 'Trade finance',
+    existingClient: false,
     scopeOfWork: 'Legal support for import/export trade finance arrangements between EU and non-EU counterparties. Estimated annual transaction volume €3.2 million.',
     scopeConfirmed: false,
     uboName: 'Arkadi Rotenberg',
@@ -2976,12 +3008,15 @@ const _DEMO_SUBS = [
     createdAt: _demoDate(1),
     formData: { country: 'Latvia', incCountry: 'Latvia', legalForm: 'Ltd', kvk: '', pep: 'no', ubo1: 'Arkadi Rotenberg — 75% shareholder', amount: '€ 3,200,000' },
   },
-  // 4. Entity — HIGH RISK not apparent from name (complex offshore structure, no clear UBO)
+  // 4. Entity — existing client, KYC valid, HIGH RISK offshore structure
   {
     id: 'demo_004', _demo: true,
     clientName: 'Sunrise Development B.V.', clientType: 'entity',
     email: 'nvvanweerdenburg@gmail.com',
     status: 'high_risk_review', risk: 'high', service: 'Real estate',
+    existingClient: true,
+    kycValidUntil: '30 juni 2026',
+    existingEngLetter: 'Engagement letter dated 3 maart 2024\n\nClient:          Sunrise Development B.V.\nScope of work:   Development and sale of mixed-use property in Amsterdam-Noord.\n                 Financing via Cypriot holding company. Capital injection €8.5M.\nTimeline:        18–24 months\nFee arrangement: Retainer — €3,500/month excl. VAT\nDisbursements:   Charged separately at cost\nTeam:            N. van Weerdenburg — Partner; S. Bakker — Associate\n\nStatus: ACCEPTED by client on 5 maart 2024\nNote:   Enhanced CDD required — UBO verification ongoing.',
     scopeOfWork: 'Development and sale of mixed-use property in Amsterdam-Noord. Financing structure involves a Cypriot holding company and a BVI intermediate vehicle. Initial capital injection of €8.5 million in cash.',
     scopeConfirmed: false,
     uboName: '',
@@ -3067,6 +3102,11 @@ function renderDashboard(subs) {
     const sanctionsHits   = sanctionsResult?.hits || [];
     const hasSanctions    = sanctionsHits.length > 0;
 
+    const isExisting   = sub.existingClient === true;
+    const existingCell = isExisting
+      ? `<span class="badge badge-green" style="cursor:pointer;" onclick="event.stopPropagation();openExistingClientModal('${sub.id}')">✓ Yes — view file</span>`
+      : `<span class="badge badge-gray">No</span>`;
+
     return `
       <tr onclick="toggleDetail('${dId}')" style="cursor:pointer${hasSanctions ? ';background:#fff5f5;' : ''}">
         <td>
@@ -3076,13 +3116,13 @@ function renderDashboard(subs) {
         </td>
         <td><span class="badge badge-gray">${sub.clientType === 'entity' ? 'Entity' : 'Natural'}</span></td>
         <td>${service}</td>
+        <td>${existingCell}</td>
         <td><span class="badge ${stBadge}">${stLbl}</span></td>
         <td><div class="doc-match">${pips}<div style="font-size:11px;color:var(--text-3);margin-left:4px">${docCount}/${totalDocs}</div></div></td>
         <td>
           <div class="risk-light ${hasSanctions ? 'risk-high' : riskCls}"><div class="risk-dot"></div>${hasSanctions ? 'High' : riskLbl}</div>
           ${hasSanctions ? `<div style="font-size:10px;font-weight:700;color:#b91c1c;margin-top:3px;white-space:nowrap;">⚠ Sanctions hit</div>` : ''}
         </td>
-        <td>—</td>
         <td style="color:var(--text-3);font-size:12px">${ago}</td>
         <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           ${committeeBtn}
@@ -3311,6 +3351,23 @@ async function sendSelectedQuestions() {
     btn.textContent = '✉ Send selected questions to client';
     btn.disabled = false;
   }
+}
+
+function openExistingClientModal(subId) {
+  const sub = _dashSubs ? _dashSubs.find(s => s.id === subId) : null;
+  if (!sub) return;
+  document.getElementById('excl-modal-title').textContent = sub.clientName + ' — Existing client file';
+  document.getElementById('excl-kyc-until').textContent = sub.kycValidUntil || 'Not specified';
+  document.getElementById('excl-eng-letter').textContent = sub.existingEngLetter || 'No engagement letter on file.';
+  // Colour the KYC block based on expiry
+  const block = document.getElementById('excl-kyc-block');
+  if (sub.kycValidUntil) {
+    block.style.background = 'var(--green-bg)';
+    block.style.borderColor = 'var(--green)';
+    block.querySelector('div div:first-child').style.color = 'var(--green)';
+    block.querySelector('span').textContent = '✓';
+  }
+  document.getElementById('existing-client-modal').classList.add('active');
 }
 
 async function _approveFile(id) {
