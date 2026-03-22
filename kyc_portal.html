@@ -3158,8 +3158,7 @@ function renderDashboard(subs) {
         <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           ${committeeBtn}
           <button class="send-reminder-btn" onclick="event.stopPropagation();sendReminderEmail('${email}','${name}')">Send reminder KYC</button>
-          <button class="send-reminder-btn" onclick="event.stopPropagation();sendEngLetterReminder('${email}','${name}','${sub.id}')">Send reminder engagement letter</button>
-          <button class="eng-toggle" onclick="event.stopPropagation();openEngModal('${name}','${email}','${service}','${sub.id}')">&#9993; Send engagement letter</button>
+<button class="eng-toggle" onclick="event.stopPropagation();openEngModal('${name}','${email}','${service}','${sub.id}')">&#9993; Send engagement letter</button>
           <button class="btn-delegate" onclick="event.stopPropagation();openDelegateModal('${sub.id}','${name}','${sub.assignedTo||''}')">↗ Assign to</button>
         </td>
       </tr>
