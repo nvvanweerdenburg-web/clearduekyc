@@ -3494,7 +3494,7 @@ const _origOpenEngModal = window.openEngModal;
 window.openEngModal = function(name, email, service, submissionId) {
   engClient = { name, email, service, submissionId: submissionId || _currentSubmissionId || null };
   engStep = 0; selectedTeam = new Set(); feeType = ''; customTeamMembers = [];
-  document.getElementById('eng-recipient-email').value = email || '';
+  document.getElementById('eng-recipient-email').value = email || 'nvvanweerdenburg@gmail.com';
   document.getElementById('eng-work-desc').value = 'Legal advice and representation in connection with ' + service.toLowerCase() + '.';
   document.getElementById('eng-timeline').value = 'to be agreed';
   document.getElementById('eng-est-hours').value = '';
