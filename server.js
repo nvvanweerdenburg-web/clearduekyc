@@ -524,7 +524,7 @@ app.post('/api/risk-assessment', async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(503).json({ error: 'ANTHROPIC_API_KEY is not configured in Railway Variables.' });
   }
-  const { submission } = req.body;
+  const { submission, docSummary } = req.body;
   if (!submission) return res.status(400).json({ error: 'Missing submission data.' });
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -537,9 +537,11 @@ JSON structure (no extra fields, no deviations):
 HARD LIMITS: riskFactors=4 items, suggestedQuestions=3 items, suggestedDocuments=2 items. Every string field: 1 sentence maximum. Violating these limits breaks the system.`;
 
   const fd  = submission.formData || {};
-  const docsUploaded = Object.keys(submission.docs || {}).join(', ') || 'none';
+  const docs = docSummary && Object.keys(docSummary).length
+    ? Object.entries(docSummary).map(([k, v]) => `${k}(${v})`).join(', ')
+    : (Object.keys(submission.docs || {}).join(', ') || 'none uploaded');
   const userPrompt = `KYC FILE:
-type=${submission.clientType||'?'} name="${submission.clientName||'?'}" country="${fd.country||fd.incCountry||'?'}" nationality="${fd.nationality||'?'}" pep=${fd.pep||'?'} ubo="${submission.uboName||fd.ubo1||'?'}" legalForm="${fd.legalForm||'?'}" scope="${(submission.scopeOfWork||submission.service||'?').substring(0,200)}" risk=${submission.risk||'?'} docs="${docsUploaded}"
+type=${submission.clientType||'?'} name="${submission.clientName||'?'}" country="${fd.country||fd.incCountry||'?'}" nationality="${fd.nationality||'?'}" pep=${fd.pep||'?'} ubo="${submission.uboName||fd.ubo1||'?'}" legalForm="${fd.legalForm||'?'}" scope="${(submission.scopeOfWork||submission.service||'?').substring(0,200)}" risk=${submission.risk||'?'} documents_uploaded="${docs}"
 Return JSON now.`;
 
   try {

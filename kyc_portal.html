@@ -3182,11 +3182,17 @@ async function retryRiskAssessment() {
 }
 
 async function _runRiskAssessment(sub) {
+  // Build a clean document list: { docId: filename } for the risk assessment
+  const docSummary = Object.entries(sub.docs || {}).reduce((acc, [k, v]) => {
+    acc[k] = typeof v === 'string' ? (v.split('/').pop() || k) : k;
+    return acc;
+  }, {});
+
   try {
     const res  = await fetch('/api/risk-assessment', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ submission: sub }),
+      body:    JSON.stringify({ submission: sub, docSummary }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Server error ' + res.status);
@@ -3348,29 +3354,37 @@ async function _viewDocs(id) {
       return;
     }
 
-    // Build list — get download URLs if storage is available, otherwise show paths
+    // Build list — get download URLs from Firebase Storage
     const rows = await Promise.all(Object.entries(docs).map(async ([docId, storagePath]) => {
-      const filename = storagePath.split('/').pop() || docId;
-      let href = null;
-      if (storage) {
-        try { href = await storage.ref(storagePath).getDownloadURL(); } catch(e) { /* access denied or missing */ }
+      const filename = typeof storagePath === 'string' ? (storagePath.split('/').pop() || docId) : docId;
+      const docLabel = docId.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+      let href = null, errMsg = null;
+      if (storage && typeof storagePath === 'string') {
+        try {
+          href = await storage.ref(storagePath).getDownloadURL();
+        } catch(e) {
+          errMsg = e.code === 'storage/object-not-found' ? 'File not found'
+                 : e.code === 'storage/unauthorized'     ? 'Access denied'
+                 : e.message;
+        }
       }
-      return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
-        <span style="font-size:22px;">📄</span>
+      return `<div style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:22px;flex-shrink:0;">📄</span>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(filename)}</div>
-          <div style="font-size:11px;color:var(--text-3);margin-top:2px;">${_esc(docId)}</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);">${_esc(docLabel)}</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px;">${_esc(filename)}</div>
+          ${errMsg ? `<div style="font-size:11px;color:#b91c1c;margin-top:2px;">⚠ ${_esc(errMsg)}</div>` : ''}
         </div>
         ${href
-          ? `<a href="${href}" target="_blank" rel="noopener"
+          ? `<a href="${_esc(href)}" target="_blank" rel="noopener"
                style="flex-shrink:0;font-size:12px;font-weight:600;color:white;background:var(--brand);padding:6px 14px;border-radius:6px;text-decoration:none;">
                ↓ Open
              </a>`
-          : `<span style="flex-shrink:0;font-size:12px;color:var(--text-3);">No access</span>`}
+          : `<span style="flex-shrink:0;font-size:12px;color:var(--text-3);">${errMsg ? '—' : 'No file'}</span>`}
       </div>`;
     }));
 
-    bodyEl.innerHTML = `<div style="padding:0 2px;">${rows.join('')}</div>`;
+    bodyEl.innerHTML = `<div style="padding:0 4px;">${rows.join('')}</div>`;
   } catch(e) {
     bodyEl.innerHTML = `<div style="padding:16px;color:var(--red);font-size:13px;">⚠ Could not load documents: ${_esc(e.message)}</div>`;
   }
