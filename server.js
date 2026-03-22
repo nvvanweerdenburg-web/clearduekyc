@@ -172,114 +172,78 @@ function engagementLetterEmailHTML(clientName, engData, letterId, lawyerEmail, a
   const denyUrl    = base + '?letter_action=deny&lid='    + encodeURIComponent(letterId||'') + '&lawyer=' + encodeURIComponent(lawyerEmail||'');
 
   const { scope, timeline, feeStr, disbursements, team } = engData || {};
-  const teamLines = Array.isArray(team) && team.length
-    ? team.map(m => m.name + (m.role ? ' \u2014 ' + m.role : '') + (m.rate ? ' (\u20ac' + m.rate + '/hr)' : '')).join('<br>')
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  const teamList = Array.isArray(team) && team.length
+    ? team.map(m => `${m.name}${m.role ? ' \u2014 ' + m.role : ''}${m.rate ? ' (\u20ac' + m.rate + '/hr)' : ''}`).join('\n   ')
     : 'To be confirmed';
 
-  const safeScope = (scope || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
-  const safeTimeline = (timeline || '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  const safeFee = (feeStr || '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  const safeDisb = (disbursements || '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
-
-  const detailRows = [
-    safeScope    ? `<tr><td style="padding:10px 16px;font-size:12px;font-weight:600;color:#6b7280;width:130px;background:#f8fafc;border-bottom:1px solid #e2e5ec;vertical-align:top;">Scope of work</td><td style="padding:10px 16px;font-size:13px;color:#1a2744;border-bottom:1px solid #e2e5ec;line-height:1.6;">${safeScope}</td></tr>` : '',
-    safeTimeline ? `<tr><td style="padding:10px 16px;font-size:12px;font-weight:600;color:#6b7280;background:#f8fafc;border-bottom:1px solid #e2e5ec;vertical-align:top;">Timeline</td><td style="padding:10px 16px;font-size:13px;color:#1a2744;border-bottom:1px solid #e2e5ec;">${safeTimeline}</td></tr>` : '',
-    safeFee      ? `<tr><td style="padding:10px 16px;font-size:12px;font-weight:600;color:#6b7280;background:#f8fafc;border-bottom:1px solid #e2e5ec;vertical-align:top;">Fee arrangement</td><td style="padding:10px 16px;font-size:13px;color:#1a2744;border-bottom:1px solid #e2e5ec;">${safeFee}</td></tr>` : '',
-    safeDisb     ? `<tr><td style="padding:10px 16px;font-size:12px;font-weight:600;color:#6b7280;background:#f8fafc;border-bottom:1px solid #e2e5ec;vertical-align:top;">Disbursements</td><td style="padding:10px 16px;font-size:13px;color:#1a2744;border-bottom:1px solid #e2e5ec;">${safeDisb}</td></tr>` : '',
-    `<tr><td style="padding:10px 16px;font-size:12px;font-weight:600;color:#6b7280;background:#f8fafc;vertical-align:top;">Team</td><td style="padding:10px 16px;font-size:13px;color:#1a2744;line-height:1.7;">${teamLines}</td></tr>`,
-  ].filter(Boolean).join('');
-
-  const detailsBlock = `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #e2e5ec;border-radius:10px;overflow:hidden;margin-bottom:24px;">${detailRows}</table>`;
-
-  const sampleTCs = [
-    'GENERAL TERMS AND CONDITIONS',
-    'ClearDue Legal B.V. \u2014 Version 2025.1 (sample/demonstration only)',
-    '═══════════════════════════════════════════════════════════',
+  const memo = [
+    'ENGAGEMENT CONFIRMATION',
+    'ClearDue Legal B.V.',
+    '\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550',
+    '',
+    'Client:         ' + (clientName || 'Client'),
+    'Scope of work:  ' + (scope || 'To be confirmed'),
+    'Timeline:       ' + (timeline || 'To be agreed'),
+    'Fee arrangement:' + (feeStr || 'To be agreed'),
+    'Disbursements:  ' + (disbursements || 'Included in fee'),
+    'Team:           ' + teamList,
+    '',
+    '\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550',
+    'GENERAL TERMS AND CONDITIONS (sample)',
     '',
     '1. SERVICES',
-    '   ClearDue Legal B.V. provides legal services as described in the',
-    '   engagement confirmation. Services are rendered with professional',
-    '   care and diligence in accordance with Dutch law and NOvA rules.',
+    '   Legal services as described above, rendered with professional',
+    '   care per Dutch law and NOvA rules.',
     '',
     '2. FEES & INVOICING',
-    '   Fees are as stated in this confirmation, exclusive of VAT (21%).',
-    '   Invoices are payable within 14 days of the invoice date.',
-    '   Statutory commercial interest (Art. 6:119a DCC) accrues on',
-    '   overdue amounts without further notice of default.',
+    '   Fees exclusive of VAT (21%). Invoices payable within 14 days.',
+    '   Statutory interest accrues on overdue amounts (Art. 6:119a DCC).',
     '',
-    '3. LIMITATION OF LIABILITY',
-    '   Liability is limited to the amount paid out under professional',
-    '   indemnity insurance, and in any event shall not exceed total',
-    '   fees invoiced in the three months preceding the claim event.',
-    '   ClearDue Legal B.V. is not liable for indirect or consequential',
-    '   loss or loss of profit.',
+    '3. LIABILITY',
+    '   Limited to professional indemnity insurance payout, and in any',
+    '   event not exceeding fees invoiced in the preceding three months.',
     '',
     '4. CONFIDENTIALITY',
-    '   All client information is treated as strictly confidential.',
-    '   No disclosure to third parties without prior written consent,',
-    '   except as required by law (including Wwft obligations).',
+    '   All client information is strictly confidential. No disclosure',
+    '   without prior written consent, except as required by law (Wwft).',
     '',
-    '5. INTELLECTUAL PROPERTY',
-    '   All work product remains the intellectual property of ClearDue',
-    '   Legal B.V. until outstanding invoices are paid in full.',
-    '   Advice is provided solely for the benefit of the client.',
+    '5. GOVERNING LAW',
+    '   Dutch law applies. Disputes: courts of Amsterdam.',
     '',
-    '6. DATA PROTECTION (AVG / GDPR)',
-    '   Personal data is processed per our Privacy Statement and',
-    '   applicable Dutch/EU data protection legislation.',
-    '',
-    '7. COMPLAINTS PROCEDURE',
-    '   Complaints must be submitted in writing within three months.',
-    '   ClearDue Legal B.V. operates an internal procedure per',
-    '   Article 6.28 of the Dutch Bar Association Rules.',
-    '',
-    '8. GOVERNING LAW & JURISDICTION',
-    '   Dutch law governs all engagements. Disputes are subject to the',
-    '   exclusive jurisdiction of the competent court in Amsterdam.',
-    '',
-    '────────────────────────────────────────────────────────────',
-    'NOTE: Sample terms for demonstration. Full Algemene Voorwaarden',
-    'will be provided upon first engagement.',
+    '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
+    'Sample terms only. Full Algemene Voorwaarden provided on engagement.',
   ].join('\n');
+
+  const safeMemo = esc(memo);
 
   return `<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#f7f8fa;font-family:'Helvetica Neue',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px;">
   <tr><td align="center">
-    <table width="600" cellpadding="0" cellspacing="0"
+    <table width="560" cellpadding="0" cellspacing="0"
       style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
       <tr><td style="background:#1a2744;padding:24px 32px;">
         <span style="font-size:18px;font-weight:700;color:white;letter-spacing:-0.3px;">&#9679;&nbsp; ClearDue Legal B.V.</span>
       </td></tr>
       <tr><td style="padding:32px;">
-        <p style="font-size:15px;font-weight:600;color:#0e1624;margin:0 0 8px;">Engagement confirmation</p>
+        <p style="font-size:15px;font-weight:600;color:#0e1624;margin:0 0 8px;">Engagement confirmation — action required</p>
         <p style="font-size:14px;color:#4a5568;line-height:1.7;margin:0 0 20px;">
-          Dear ${clientName || 'Client'},<br><br>
-          Thank you for choosing ClearDue Legal B.V. Below you will find a confirmation of your engagement.
-          All our services are subject to our general terms and conditions, a summary of which is included at the bottom of this email.
+          Dear ${esc(clientName) || 'Client'},<br><br>
+          Please review the engagement details below and accept or decline.
+          All our services are subject to our general terms and conditions (included below).
+          Work may only commence after KYC is complete and this confirmation is accepted.
         </p>
-        ${detailsBlock}
-        <p style="font-size:13px;color:#4a5568;line-height:1.7;margin:0 0 20px;">
-          Please use the buttons below to <strong>accept</strong> or <strong>decline</strong> this engagement.
-          Work may only commence after your KYC file is complete and this confirmation has been accepted.
-        </p>
-        <div style="text-align:center;margin:0 0 32px;">
-          <a href="${approveUrl}"
-            style="display:inline-block;background:#15803d;color:white;text-decoration:none;padding:13px 32px;border-radius:10px;font-size:14px;font-weight:600;margin:6px;">
-            ✓ Accept engagement
-          </a>
-          <a href="${denyUrl}"
-            style="display:inline-block;background:#b91c1c;color:white;text-decoration:none;padding:13px 32px;border-radius:10px;font-size:14px;font-weight:600;margin:6px;">
-            ✕ Decline
-          </a>
-        </div>
         <div style="background:#0f172a;border-radius:10px;padding:28px;margin-bottom:24px;">
-          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#94a3b8;margin:0 0 14px;">General terms &amp; conditions</p>
-          <pre style="font-family:'Courier New',monospace;font-size:11px;color:#e2e8f0;line-height:1.75;margin:0;white-space:pre-wrap;word-break:break-word;">${sampleTCs}</pre>
+          <pre style="font-family:'Courier New',monospace;font-size:12px;color:#e2e8f0;line-height:1.75;margin:0;white-space:pre-wrap;word-break:break-word;">${safeMemo}</pre>
+        </div>
+        <div style="text-align:center;margin:0 0 28px;">
+          <a href="${approveUrl}" style="display:inline-block;background:#15803d;color:white;text-decoration:none;padding:13px 32px;border-radius:10px;font-size:14px;font-weight:600;margin:6px;">&#10003; Accept</a>
+          <a href="${denyUrl}" style="display:inline-block;background:#b91c1c;color:white;text-decoration:none;padding:13px 32px;border-radius:10px;font-size:14px;font-weight:600;margin:6px;">&#10005; Decline</a>
         </div>
         <p style="font-size:12px;color:#8a94a6;border-top:1px solid #e2e5ec;padding-top:20px;margin:0;">
-          ClearDue Legal B.V. &middot; Herengracht 400, 1017 BX Amsterdam &middot; info@cleardue.legal<br>
-          KvK: 80123456 &middot; BTW: NL003456789B01
+          ClearDue Legal B.V. &middot; Herengracht 400, 1017 BX Amsterdam &middot; info@cleardue.legal
         </p>
       </td></tr>
     </table>
