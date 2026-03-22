@@ -265,6 +265,50 @@ app.post('/api/send-reminder', async (req, res) => {
   }
 });
 
+// ── POST /api/send-eng-letter-reminder ───────────────────────────────────────
+app.post('/api/send-eng-letter-reminder', async (req, res) => {
+  const { to, clientName, letterId, lawyerEmail } = req.body;
+  if (!to) return res.status(400).json({ error: 'Missing recipient email' });
+  const appUrl     = process.env.APP_URL || 'https://clearduekyc-production.up.railway.app';
+  const approveUrl = `${appUrl}?letter_action=approve&lid=${encodeURIComponent(letterId||'')}&lawyer=${encodeURIComponent(lawyerEmail||'')}`;
+  const denyUrl    = `${appUrl}?letter_action=deny&lid=${encodeURIComponent(letterId||'')}&lawyer=${encodeURIComponent(lawyerEmail||'')}`;
+  const html = `<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#f7f8fa;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0"
+      style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+      <tr><td style="background:#1a2744;padding:24px 32px;">
+        <span style="font-size:18px;font-weight:700;color:white;">&#9679;&nbsp; ClearDue Legal B.V.</span>
+      </td></tr>
+      <tr><td style="padding:32px;">
+        <p style="font-size:15px;font-weight:600;color:#0e1624;margin:0 0 16px;">Reminder: engagement letter awaiting your response</p>
+        <p style="font-size:14px;color:#4a5568;line-height:1.7;margin:0 0 24px;">
+          Dear ${clientName || 'Client'},<br><br>
+          We noticed that our engagement letter is still awaiting your approval.
+          Please use the buttons below to accept or decline at your earliest convenience.
+          We cannot commence work on your behalf until the engagement letter has been accepted.
+        </p>
+        <div style="text-align:center;margin:0 0 28px;">
+          <a href="${approveUrl}" style="display:inline-block;background:#15803d;color:white;text-decoration:none;padding:13px 32px;border-radius:10px;font-size:14px;font-weight:600;margin:6px;">&#10003; Accept</a>
+          <a href="${denyUrl}" style="display:inline-block;background:#b91c1c;color:white;text-decoration:none;padding:13px 32px;border-radius:10px;font-size:14px;font-weight:600;margin:6px;">&#10005; Decline</a>
+        </div>
+        <p style="font-size:13px;color:#8a94a6;border-top:1px solid #e2e5ec;padding-top:20px;margin:0;">
+          ClearDue Legal B.V. &middot; Herengracht 400, 1017 BX Amsterdam &middot; info@cleardue.legal
+        </p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table></body></html>`;
+  try {
+    await sendEmail({ to, subject: 'Reminder: engagement letter awaiting your response — ClearDue Legal B.V.', html });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[Email] Eng letter reminder failed:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── POST /api/send-engagement-letter ─────────────────────────────────────────
 app.post('/api/send-engagement-letter', async (req, res) => {
   const { to, clientName, engagementData, letterId, lawyerEmail } = req.body;

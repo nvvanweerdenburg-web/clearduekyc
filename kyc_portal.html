@@ -1447,6 +1447,7 @@
             <th>Status</th>
             <th>Doc match</th>
             <th>Risk</th>
+            <th>Engagement approved</th>
             <th>Last activity</th>
             <th></th>
           </tr>
@@ -2997,6 +2998,7 @@ const _DEMO_SUBS = [
     email: 'nvvanweerdenburg@gmail.com',
     status: 'approved', risk: 'low', service: 'Real estate',
     existingClient: true,
+    engagementTermsApproved: true,
     kycValidUntil: '31 december 2026',
     existingEngLetter: 'Engagement letter dated 15 januari 2025\n\nClient:          Jan de Vries\nScope of work:   Acquisition of residential property at Keizersgracht 312, Amsterdam.\n                 Purchase price €485,000. Mortgage financing via ABN AMRO.\nTimeline:        Approximately 6 weeks\nFee arrangement: Hourly — N. van Weerdenburg €350/hr (est. 12 hrs, budget €4,200 excl. VAT)\nDisbursements:   Charged separately at cost\nTeam:            N. van Weerdenburg — Partner\n\nStatus: ACCEPTED by client on 17 januari 2025',
     scopeOfWork: 'Acquisition of residential property at Keizersgracht 312, Amsterdam. Purchase price €485,000. Mortgage financing via ABN AMRO.',
@@ -3149,10 +3151,14 @@ function renderDashboard(subs) {
           <div class="risk-light ${hasSanctions ? 'risk-high' : riskCls}"><div class="risk-dot"></div>${hasSanctions ? 'High' : riskLbl}</div>
           ${hasSanctions ? `<div style="font-size:10px;font-weight:700;color:#b91c1c;margin-top:3px;white-space:nowrap;">⚠ Sanctions hit</div>` : ''}
         </td>
+        <td>${sub.engagementTermsApproved
+          ? `<span class="badge badge-green">✓ Yes</span>`
+          : `<span class="badge badge-gray">No</span>`}</td>
         <td style="color:var(--text-3);font-size:12px">${ago}</td>
         <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           ${committeeBtn}
-          <button class="send-reminder-btn" onclick="event.stopPropagation();sendReminderEmail('${email}','${name}')">Send reminder</button>
+          <button class="send-reminder-btn" onclick="event.stopPropagation();sendReminderEmail('${email}','${name}')">Send reminder KYC</button>
+          <button class="send-reminder-btn" onclick="event.stopPropagation();sendEngLetterReminder('${email}','${name}','${sub.id}')">Send reminder engagement letter</button>
           <button class="eng-toggle" onclick="event.stopPropagation();openEngModal('${name}','${email}','${service}','${sub.id}')">&#9993; Send engagement letter</button>
           <button class="btn-delegate" onclick="event.stopPropagation();openDelegateModal('${sub.id}','${name}','${sub.assignedTo||''}')">↗ Assign to</button>
         </td>
@@ -3693,13 +3699,24 @@ async function handleLetterAction(userEmail) {
   if (!action || !lid) return;
 
   // Clear URL params without reloading
-  const clean = window.location.pathname;
-  window.history.replaceState({}, '', clean);
+  window.history.replaceState({}, '', window.location.pathname);
 
-  const actionLabel = action === 'approve' ? 'approved' : 'denied';
-  const newStatus   = action === 'approve' ? 'approved' : 'denied';
+  const newStatus = action === 'approve' ? 'approved' : 'denied';
 
-  // 1. Update Firestore
+  // 1. Get client name from Firestore
+  let clientName = 'A client';
+  let submissionId = null;
+  if (db) {
+    try {
+      const letterDoc = await db.collection('engagement_letters').doc(lid).get().catch(() => null);
+      if (letterDoc?.exists) {
+        clientName   = letterDoc.data().clientName || clientName;
+        submissionId = letterDoc.data().submissionId || null;
+      }
+    } catch(e) { console.warn('Letter fetch failed:', e.message); }
+  }
+
+  // 2. Update Firestore engagement_letters + linked submission
   if (db) {
     try {
       await db.collection('engagement_letters').doc(lid).update({
@@ -3708,28 +3725,95 @@ async function handleLetterAction(userEmail) {
         clientEmail:  userEmail || '',
         respondedAt:  firebase.firestore.FieldValue.serverTimestamp(),
       });
+      if (submissionId && action === 'approve') {
+        await db.collection('submissions').doc(submissionId).update({
+          engagementTermsApproved: true,
+          engagementTermsApprovedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        }).catch(() => {});
+      }
     } catch(e) { console.warn('Letter action Firestore update failed:', e.message); }
   }
 
-  // 2. Notify lawyer via email
-  if (lawyer) {
+  // 3. Always notify nvvanweerdenburg@gmail.com + the lawyer (if different)
+  const notifyAddresses = ['nvvanweerdenburg@gmail.com'];
+  if (lawyer && lawyer !== 'nvvanweerdenburg@gmail.com') notifyAddresses.push(lawyer);
+  for (const addr of notifyAddresses) {
     try {
-      // Try to get client name from Firestore
-      let clientName = 'A client';
-      if (db) {
-        const letterDoc = await db.collection('engagement_letters').doc(lid).get().catch(() => null);
-        if (letterDoc?.exists) clientName = letterDoc.data().clientName || clientName;
-      }
       await fetch('/api/notify-lawyer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: lawyer, clientName, action, letterId: lid }),
+        body: JSON.stringify({ to: addr, clientName, action, letterId: lid }),
       });
     } catch(e) { console.warn('Notify lawyer failed:', e.message); }
   }
 
-  const icon = action === 'approve' ? '✓' : '✕';
-  _toast(`${icon} Engagement letter ${actionLabel}. The lawyer has been notified.`, action === 'approve' ? 'green' : 'red');
+  // 4. Show thank-you / confirmation screen for approve
+  if (action === 'approve') {
+    _showEngagementThankYou(clientName);
+  } else {
+    _toast('✕ Engagement letter denied. The lawyer has been notified.', 'red');
+  }
+}
+
+function _showEngagementThankYou(clientName) {
+  // Overlay the entire page with a thank-you screen
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:white;z-index:9999;display:flex;align-items:center;justify-content:center;padding:40px;';
+  overlay.innerHTML = `
+    <div style="max-width:520px;text-align:center;">
+      <div style="width:72px;height:72px;background:#f0fdf4;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:32px;">✓</div>
+      <h1 style="font-size:22px;font-weight:700;color:#0e1624;margin:0 0 12px;">Thank you for your approval</h1>
+      <p style="font-size:15px;color:#4a5568;line-height:1.75;margin:0 0 24px;">
+        Dear ${_esc(clientName)},<br><br>
+        Your acceptance of the engagement letter has been noted.
+        We will be in touch shortly to discuss the next steps.
+      </p>
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:16px 20px;font-size:13px;color:#15803d;margin-bottom:28px;">
+        Your acceptance has been recorded and our team has been notified.
+      </div>
+      <p style="font-size:13px;color:#8a94a6;">
+        You may now close this window.<br>
+        If you have any questions, please contact us at <a href="mailto:info@cleardue.legal" style="color:#1a2744;">info@cleardue.legal</a>.
+      </p>
+      <div style="margin-top:32px;font-size:12px;color:#c3c8d4;">ClearDue Legal B.V. &middot; Herengracht 400, 1017 BX Amsterdam</div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+// ===== Real email: send engagement letter reminder =====
+async function sendEngLetterReminder(email, clientName, subId) {
+  if (!email) { _toast('⚠ No email on file for this client', 'red'); return; }
+  // Find the most recent engagement letter for this submission
+  let letterId = null;
+  let lawyerEmail = currentUser?.email || 'nvvanweerdenburg@gmail.com';
+  if (db && subId && !subId.startsWith('demo_')) {
+    try {
+      const snap = await db.collection('engagement_letters')
+        .where('submissionId', '==', subId)
+        .orderBy('sentAt', 'desc')
+        .limit(1)
+        .get();
+      if (!snap.empty) {
+        letterId    = snap.docs[0].id;
+        lawyerEmail = snap.docs[0].data().sentBy || lawyerEmail;
+      }
+    } catch(e) { console.warn('Eng letter lookup failed:', e.message); }
+  }
+  try {
+    const res = await fetch('/api/send-eng-letter-reminder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: email, clientName, letterId, lawyerEmail }),
+    });
+    if (res.ok) {
+      _toast('✓ Engagement letter reminder sent to ' + email);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      _toast('⚠ Reminder failed: ' + (err.error || 'server error'), 'red');
+    }
+  } catch(e) {
+    _toast('⚠ Could not send reminder — check server logs', 'red');
+  }
 }
 
 // ===== Real email: send reminder =====
