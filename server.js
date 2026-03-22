@@ -162,48 +162,127 @@ function reminderEmailHTML(clientName) {
 </body></html>`;
 }
 
-function engagementLetterEmailHTML(clientName, letterHTML, letterId, lawyerEmail, appUrl) {
+function engagementLetterEmailHTML(clientName, engData, letterId, lawyerEmail, appUrl) {
   const base       = appUrl || process.env.APP_URL || 'https://clearduekyc-production.up.railway.app';
-  const approveUrl = `${base}?letter_action=approve&lid=${encodeURIComponent(letterId||'')}&lawyer=${encodeURIComponent(lawyerEmail||'')}`;
-  const denyUrl    = `${base}?letter_action=deny&lid=${encodeURIComponent(letterId||'')}&lawyer=${encodeURIComponent(lawyerEmail||'')}`;
+  const approveUrl = base + '?letter_action=approve&lid=' + encodeURIComponent(letterId||'') + '&lawyer=' + encodeURIComponent(lawyerEmail||'');
+  const denyUrl    = base + '?letter_action=deny&lid='    + encodeURIComponent(letterId||'') + '&lawyer=' + encodeURIComponent(lawyerEmail||'');
+
+  const { scope, timeline, feeStr, disbursements, team } = engData || {};
+  const teamLines = Array.isArray(team) && team.length
+    ? team.map(m => m.name + (m.role ? ' \u2014 ' + m.role : '') + (m.rate ? ' (\u20ac' + m.rate + '/hr)' : '')).join('<br>')
+    : 'To be confirmed';
+
+  const safeScope = (scope || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  const safeTimeline = (timeline || '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const safeFee = (feeStr || '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const safeDisb = (disbursements || '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+  const detailRows = [
+    safeScope    ? `<tr><td style="padding:10px 16px;font-size:12px;font-weight:600;color:#6b7280;width:130px;background:#f8fafc;border-bottom:1px solid #e2e5ec;vertical-align:top;">Scope of work</td><td style="padding:10px 16px;font-size:13px;color:#1a2744;border-bottom:1px solid #e2e5ec;line-height:1.6;">${safeScope}</td></tr>` : '',
+    safeTimeline ? `<tr><td style="padding:10px 16px;font-size:12px;font-weight:600;color:#6b7280;background:#f8fafc;border-bottom:1px solid #e2e5ec;vertical-align:top;">Timeline</td><td style="padding:10px 16px;font-size:13px;color:#1a2744;border-bottom:1px solid #e2e5ec;">${safeTimeline}</td></tr>` : '',
+    safeFee      ? `<tr><td style="padding:10px 16px;font-size:12px;font-weight:600;color:#6b7280;background:#f8fafc;border-bottom:1px solid #e2e5ec;vertical-align:top;">Fee arrangement</td><td style="padding:10px 16px;font-size:13px;color:#1a2744;border-bottom:1px solid #e2e5ec;">${safeFee}</td></tr>` : '',
+    safeDisb     ? `<tr><td style="padding:10px 16px;font-size:12px;font-weight:600;color:#6b7280;background:#f8fafc;border-bottom:1px solid #e2e5ec;vertical-align:top;">Disbursements</td><td style="padding:10px 16px;font-size:13px;color:#1a2744;border-bottom:1px solid #e2e5ec;">${safeDisb}</td></tr>` : '',
+    `<tr><td style="padding:10px 16px;font-size:12px;font-weight:600;color:#6b7280;background:#f8fafc;vertical-align:top;">Team</td><td style="padding:10px 16px;font-size:13px;color:#1a2744;line-height:1.7;">${teamLines}</td></tr>`,
+  ].filter(Boolean).join('');
+
+  const detailsBlock = `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #e2e5ec;border-radius:10px;overflow:hidden;margin-bottom:24px;">${detailRows}</table>`;
+
+  const sampleTCs = [
+    'GENERAL TERMS AND CONDITIONS',
+    'ClearDue Legal B.V. \u2014 Version 2025.1 (sample/demonstration only)',
+    '═══════════════════════════════════════════════════════════',
+    '',
+    '1. SERVICES',
+    '   ClearDue Legal B.V. provides legal services as described in the',
+    '   engagement confirmation. Services are rendered with professional',
+    '   care and diligence in accordance with Dutch law and NOvA rules.',
+    '',
+    '2. FEES & INVOICING',
+    '   Fees are as stated in this confirmation, exclusive of VAT (21%).',
+    '   Invoices are payable within 14 days of the invoice date.',
+    '   Statutory commercial interest (Art. 6:119a DCC) accrues on',
+    '   overdue amounts without further notice of default.',
+    '',
+    '3. LIMITATION OF LIABILITY',
+    '   Liability is limited to the amount paid out under professional',
+    '   indemnity insurance, and in any event shall not exceed total',
+    '   fees invoiced in the three months preceding the claim event.',
+    '   ClearDue Legal B.V. is not liable for indirect or consequential',
+    '   loss or loss of profit.',
+    '',
+    '4. CONFIDENTIALITY',
+    '   All client information is treated as strictly confidential.',
+    '   No disclosure to third parties without prior written consent,',
+    '   except as required by law (including Wwft obligations).',
+    '',
+    '5. INTELLECTUAL PROPERTY',
+    '   All work product remains the intellectual property of ClearDue',
+    '   Legal B.V. until outstanding invoices are paid in full.',
+    '   Advice is provided solely for the benefit of the client.',
+    '',
+    '6. DATA PROTECTION (AVG / GDPR)',
+    '   Personal data is processed per our Privacy Statement and',
+    '   applicable Dutch/EU data protection legislation.',
+    '',
+    '7. COMPLAINTS PROCEDURE',
+    '   Complaints must be submitted in writing within three months.',
+    '   ClearDue Legal B.V. operates an internal procedure per',
+    '   Article 6.28 of the Dutch Bar Association Rules.',
+    '',
+    '8. GOVERNING LAW & JURISDICTION',
+    '   Dutch law governs all engagements. Disputes are subject to the',
+    '   exclusive jurisdiction of the competent court in Amsterdam.',
+    '',
+    '────────────────────────────────────────────────────────────',
+    'NOTE: Sample terms for demonstration. Full Algemene Voorwaarden',
+    'will be provided upon first engagement.',
+  ].join('\n');
+
   return `<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#f7f8fa;font-family:'Helvetica Neue',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px;">
   <tr><td align="center">
-    <table width="560" cellpadding="0" cellspacing="0"
+    <table width="600" cellpadding="0" cellspacing="0"
       style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
       <tr><td style="background:#1a2744;padding:24px 32px;">
         <span style="font-size:18px;font-weight:700;color:white;letter-spacing:-0.3px;">&#9679;&nbsp; ClearDue Legal B.V.</span>
       </td></tr>
       <tr><td style="padding:32px;">
-        <p style="font-size:15px;font-weight:600;color:#0e1624;margin:0 0 16px;">Engagement letter for signing</p>
-        <p style="font-size:14px;color:#4a5568;line-height:1.7;margin:0 0 24px;">
+        <p style="font-size:15px;font-weight:600;color:#0e1624;margin:0 0 8px;">Engagement confirmation</p>
+        <p style="font-size:14px;color:#4a5568;line-height:1.7;margin:0 0 20px;">
           Dear ${clientName || 'Client'},<br><br>
-          Your engagement letter from <strong>ClearDue Legal B.V.</strong> is ready for review.
-          Please use the buttons below to approve or deny the letter.
-          Work may only commence after your KYC file is complete and the engagement letter has been approved.
+          Thank you for choosing ClearDue Legal B.V. Below you will find a confirmation of your engagement.
+          All our services are subject to our general terms and conditions, a summary of which is included at the bottom of this email.
         </p>
-        <div style="text-align:center;margin:0 0 28px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        ${detailsBlock}
+        <p style="font-size:13px;color:#4a5568;line-height:1.7;margin:0 0 20px;">
+          Please use the buttons below to <strong>accept</strong> or <strong>decline</strong> this engagement.
+          Work may only commence after your KYC file is complete and this confirmation has been accepted.
+        </p>
+        <div style="text-align:center;margin:0 0 32px;">
           <a href="${approveUrl}"
-            style="display:inline-block;background:#15803d;color:white;text-decoration:none;
-                   padding:13px 32px;border-radius:10px;font-size:14px;font-weight:600;">
-            ✓ Approve
+            style="display:inline-block;background:#15803d;color:white;text-decoration:none;padding:13px 32px;border-radius:10px;font-size:14px;font-weight:600;margin:6px;">
+            ✓ Accept engagement
           </a>
           <a href="${denyUrl}"
-            style="display:inline-block;background:#b91c1c;color:white;text-decoration:none;
-                   padding:13px 32px;border-radius:10px;font-size:14px;font-weight:600;">
-            ✕ Deny
+            style="display:inline-block;background:#b91c1c;color:white;text-decoration:none;padding:13px 32px;border-radius:10px;font-size:14px;font-weight:600;margin:6px;">
+            ✕ Decline
           </a>
         </div>
-        <p style="font-size:13px;color:#8a94a6;border-top:1px solid #e2e5ec;padding-top:20px;margin:0;">
-          ClearDue Legal B.V. &middot; Herengracht 400, 1017 BX Amsterdam &middot; info@cleardue.legal
+        <div style="background:#0f172a;border-radius:10px;padding:28px;margin-bottom:24px;">
+          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#94a3b8;margin:0 0 14px;">General terms &amp; conditions</p>
+          <pre style="font-family:'Courier New',monospace;font-size:11px;color:#e2e8f0;line-height:1.75;margin:0;white-space:pre-wrap;word-break:break-word;">${sampleTCs}</pre>
+        </div>
+        <p style="font-size:12px;color:#8a94a6;border-top:1px solid #e2e5ec;padding-top:20px;margin:0;">
+          ClearDue Legal B.V. &middot; Herengracht 400, 1017 BX Amsterdam &middot; info@cleardue.legal<br>
+          KvK: 80123456 &middot; BTW: NL003456789B01
         </p>
       </td></tr>
     </table>
   </td></tr>
-</table>
-</body></html>`;
+</table></body></html>`;
 }
+
 
 // ── POST /api/send-reminder ───────────────────────────────────────────────────
 app.post('/api/send-reminder', async (req, res) => {
@@ -220,11 +299,11 @@ app.post('/api/send-reminder', async (req, res) => {
 
 // ── POST /api/send-engagement-letter ─────────────────────────────────────────
 app.post('/api/send-engagement-letter', async (req, res) => {
-  const { to, clientName, letterHTML, letterId, lawyerEmail } = req.body;
+  const { to, clientName, engagementData, letterId, lawyerEmail } = req.body;
   if (!to) return res.status(400).json({ error: 'Missing recipient email' });
   const appUrl = process.env.APP_URL || 'https://clearduekyc-production.up.railway.app';
   try {
-    await sendEmail({ to, subject: 'Your engagement letter — ClearDue Legal B.V.', html: engagementLetterEmailHTML(clientName, letterHTML || '', letterId, lawyerEmail, appUrl) });
+    await sendEmail({ to, subject: 'Engagement confirmation — ClearDue Legal B.V.', html: engagementLetterEmailHTML(clientName, engagementData || {}, letterId, lawyerEmail, appUrl) });
     res.json({ ok: true });
   } catch (e) {
     console.error('[Email] Engagement letter failed:', e.message);
@@ -482,86 +561,23 @@ app.post('/api/risk-assessment', async (req, res) => {
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  const systemPrompt = `You are a Dutch legal compliance specialist with deep expertise in:
-- Wet ter voorkoming van witwassen en financieren van terrorisme (Wwft)
-- Leidraad Wwft for legal professionals (advocaten, notarissen) published by the Dutch supervisory authorities
-- FATF 40 Recommendations, FATF Guidance for Legal Professionals, and FATF high-risk/monitored jurisdictions
-- EU AML Directives (AMLD4, AMLD5, AMLD6) as transposed into Dutch law
-- Dutch Bar Association (NOvA) guidelines on Wwft compliance
+  const systemPrompt = `Wwft/FATF KYC risk assessor for a Dutch law firm. Respond ONLY with a JSON object — no prose, no markdown, no code fences. Start with { end with }.
 
-Your task: produce a structured CDD/risk assessment for a KYC file at a Dutch law firm. Be specific — reference actual legal provisions and Leidraad sections. Be concise but substantive. Always mention the legal basis.
+JSON structure (no extra fields, no deviations):
+{"overallRisk":"high|medium|low","riskJustification":"max 1 sentence","cddLevel":"enhanced|standard|simplified","riskFactors":[{"factor":"max 5 words","severity":"high|medium|low","explanation":"max 1 sentence","legalBasis":"Art. X Wwft or FATF R.X"}],"suggestedQuestions":[{"question":"max 15 words","rationale":"max 1 sentence"}],"suggestedDocuments":[{"document":"max 6 words","rationale":"max 1 sentence"}],"ongoingMonitoring":"max 1 sentence","disclaimer":"AI-generated, not legal advice."}
 
-IMPORTANT: Your entire response must be a single valid JSON object. Do not include any text, explanation, markdown, or code fences before or after the JSON. Start your response with { and end with }. This is critical — any non-JSON output will break the system.
-
-Return a JSON object with this exact structure:
-{
-  "overallRisk": "high" | "medium" | "low",
-  "riskJustification": "2-3 sentence summary of overall risk verdict",
-  "cddLevel": "standard" | "enhanced" | "simplified",
-  "cddJustification": "Why this CDD level is required",
-  "riskFactors": [
-    {
-      "factor": "Short name of risk factor",
-      "severity": "high" | "medium" | "low",
-      "explanation": "Why this is a risk factor given the specific client/matter",
-      "legalBasis": "e.g. Art. 8 Wwft / FATF R.12 / Leidraad Wwft §4.3.2"
-    }
-  ],
-  "suggestedQuestions": [
-    {
-      "question": "Specific question to ask the client",
-      "rationale": "Why this question is relevant under Wwft/FATF"
-    }
-  ],
-  "suggestedDocuments": [
-    {
-      "document": "Specific document to request",
-      "rationale": "Legal or risk basis for this request"
-    }
-  ],
-  "ongoingMonitoring": "Specific ongoing monitoring recommendations for this client/matter",
-  "disclaimer": "This assessment is AI-generated based on available data and does not constitute legal advice. The responsible compliance officer must validate this assessment before any engagement decision is made."
-}`;
+HARD LIMITS: riskFactors=4 items, suggestedQuestions=3 items, suggestedDocuments=2 items. Every string field: 1 sentence maximum. Violating these limits breaks the system.`;
 
   const fd  = submission.formData || {};
-  const userPrompt = `Please generate a Wwft/FATF risk assessment for the following KYC file:
-
-CLIENT INFORMATION
-- Client type: ${submission.clientType === 'natural' ? 'Natural person (Art. 3 Wwft)' : 'Legal entity (Art. 3 Wwft)'}
-- Name: ${submission.clientName || '—'}
-- Email: ${submission.email || '—'}
-- Country of ${submission.clientType === 'natural' ? 'residence' : 'incorporation'}: ${fd.country || fd.incCountry || '—'}
-- Nationality: ${fd.nationality || '—'}
-${submission.clientType === 'entity' ? `- Legal form: ${fd.legalForm || '—'}
-- KvK number: ${fd.kvk || '—'}` : `- Date of birth: ${fd.dob || '—'}
-- BSN: ${fd.bsn ? '[provided]' : '[not provided]'}`}
-
-MATTER INFORMATION
-- Purpose of engagement: ${submission.purposeOfEngagement || submission.service || '—'}
-- Scope of work: ${(submission.scopeOfWork || '—').substring(0, 400)}
-- Estimated transaction value: ${fd.amount || '—'}
-
-PEP & UBO
-- PEP status: ${fd.pep === 'yes' ? 'YES — client is or was a PEP (Art. 16 Wwft)' : fd.pep === 'no' ? 'No PEP' : 'Not stated'}
-- UBO name: ${submission.uboName || '—'}
-- UBO details: ${fd.ubo1 || '—'}
-
-CURRENT RISK INDICATORS
-- System-calculated risk: ${submission.risk || '—'}
-- Scope risk keywords: ${submission.scopeOfWork || '—'}
-- Status: ${submission.status || '—'}
-- Scope confirmed by client: ${submission.scopeConfirmed === true ? 'Yes' : submission.scopeComments ? 'Client submitted comments' : 'Pending'}
-
-DOCUMENTS UPLOADED
-- Number of documents uploaded: ${Object.keys(submission.docs || {}).length}
-- Document types: ${Object.keys(submission.docs || {}).join(', ') || 'None yet'}
-
-Please assess all risk factors thoroughly, including: geographic risk, client type risk, PEP/UBO risk, transaction type risk, service-specific risk indicators from the Leidraad Wwft, and any unusual patterns. Suggest specific follow-up questions and documents proportionate to the risk level identified.`;
+  const docsUploaded = Object.keys(submission.docs || {}).join(', ') || 'none';
+  const userPrompt = `KYC FILE:
+type=${submission.clientType||'?'} name="${submission.clientName||'?'}" country="${fd.country||fd.incCountry||'?'}" nationality="${fd.nationality||'?'}" pep=${fd.pep||'?'} ubo="${submission.uboName||fd.ubo1||'?'}" legalForm="${fd.legalForm||'?'}" scope="${(submission.scopeOfWork||submission.service||'?').substring(0,200)}" risk=${submission.risk||'?'} docs="${docsUploaded}"
+Return JSON now.`;
 
   try {
     const message = await client.messages.create({
-      model:      'claude-sonnet-4-6',
-      max_tokens: 4096,
+      model:      'claude-haiku-4-5-20251001',
+      max_tokens: 1200,
       system:     systemPrompt,
       messages:   [{ role: 'user', content: userPrompt }],
     });

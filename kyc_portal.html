@@ -1720,12 +1720,6 @@
     <!-- Step 0: Work description -->
     <div id="eng-step-0">
       <div class="modal-field">
-        <label>Recipient email address <span class="req">*</span></label>
-        <input type="email" id="eng-recipient-email" placeholder="client@example.com"
-          style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;color:var(--text);box-sizing:border-box;">
-        <div style="font-size:11px;color:var(--text-3);margin-top:4px;">The engagement letter notification will be sent to this address.</div>
-      </div>
-      <div class="modal-field">
         <label>Describe the work we are going to perform <span class="req">*</span></label>
         <textarea id="eng-work-desc" rows="4" style="width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;resize:vertical;" placeholder="e.g. We will advise the client on all legal aspects of the acquisition of a residential property located at Keizersgracht 123, Amsterdam, including due diligence, drafting the purchase agreement, and notarial coordination."></textarea>
       </div>
@@ -1816,15 +1810,30 @@
         <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:8px;">Fee summary</div>
         <div id="fee-team-table"></div>
       </div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:8px;">Add team member (free field)</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input id="eng-custom-tm-name" type="text" placeholder="Name" style="flex:1;min-width:120px;padding:9px 12px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:13px;color:var(--text);">
+          <input id="eng-custom-tm-role" type="text" placeholder="Role (e.g. Of Counsel)" style="flex:1;min-width:120px;padding:9px 12px;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:13px;color:var(--text);">
+          <button onclick="addCustomTeamMember()" style="padding:9px 16px;background:var(--brand);color:white;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">+ Add</button>
+        </div>
+        <div id="custom-team-list" style="margin-top:8px;"></div>
+      </div>
     </div>
 
     <!-- Step 3: Review & send -->
     <div id="eng-step-3" style="display:none">
       <div class="modal-field">
         <label>Engagement letter preview</label>
-        <div class="modal-preview" id="eng-preview" style="max-height:340px;font-size:12.5px;line-height:1.75;">
+        <div class="modal-preview" id="eng-preview" style="max-height:300px;font-size:12.5px;line-height:1.75;">
           Complete the previous steps to generate the letter preview.
         </div>
+      </div>
+      <div class="modal-field" style="margin-top:8px;">
+        <label style="font-weight:700;color:var(--text);">Send to email address <span class="req">*</span></label>
+        <input type="email" id="eng-recipient-email" placeholder="client@example.com"
+          style="width:100%;padding:10px 14px;border:2px solid var(--border-strong);border-radius:var(--radius);font-family:inherit;font-size:14px;color:var(--text);box-sizing:border-box;">
+        <div style="font-size:11px;color:var(--text-3);margin-top:4px;">The engagement letter will be sent to this address.</div>
       </div>
       <div style="background:var(--amber-bg);border:1px solid #fcd34d;border-radius:var(--radius);padding:10px 14px;font-size:12px;color:var(--amber);margin-bottom:16px;">
         ⚠ Sending this letter does not constitute commencement of services. Work may only begin after KYC is complete and the client has countersigned.
@@ -2425,6 +2434,7 @@ let engClient = {};
 let engStep = 0;
 let selectedTeam = new Set();
 let feeType = '';
+let customTeamMembers = [];
 
 function openEngModal(name, email, service) {
   engClient = { name, email, service };
@@ -2460,6 +2470,34 @@ function toggleTeamMember(id, el) {
   if (selectedTeam.has(id)) { selectedTeam.delete(id); el.classList.remove('selected'); }
   else { selectedTeam.add(id); el.classList.add('selected'); }
   updateTeamFeeSummary();
+}
+
+function addCustomTeamMember() {
+  const nameEl = document.getElementById('eng-custom-tm-name');
+  const roleEl = document.getElementById('eng-custom-tm-role');
+  const name = nameEl.value.trim();
+  if (!name) { nameEl.focus(); return; }
+  customTeamMembers.push({ name, role: roleEl.value.trim() || 'Team member' });
+  nameEl.value = ''; roleEl.value = '';
+  renderCustomTeamList();
+  updateTeamFeeSummary();
+}
+
+function removeCustomTeamMember(idx) {
+  customTeamMembers.splice(idx, 1);
+  renderCustomTeamList();
+  updateTeamFeeSummary();
+}
+
+function renderCustomTeamList() {
+  const el = document.getElementById('custom-team-list');
+  if (!el) return;
+  if (!customTeamMembers.length) { el.innerHTML = ''; return; }
+  el.innerHTML = customTeamMembers.map((m, i) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;margin-bottom:4px;font-size:13px;">
+      <span><strong>${_esc(m.name)}</strong><span style="color:var(--text-3);margin-left:8px;font-size:12px;">${_esc(m.role)}</span></span>
+      <button onclick="removeCustomTeamMember(${i})" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:18px;line-height:1;padding:0 4px;" title="Remove">×</button>
+    </div>`).join('');
 }
 
 function updateTeamFeeSummary() {
@@ -2514,40 +2552,72 @@ function engPrevStep() { showEngStep(engStep - 1); }
 
 function buildEngLetterPreview() {
   const today = new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
-  const desc = document.getElementById('eng-work-desc').value || '[description of work]';
+  const scope = document.getElementById('eng-work-desc').value.trim() || '[scope of work]';
   const timeline = document.getElementById('eng-timeline').value || 'to be agreed';
-  const selected = TEAM_MEMBERS.filter(m => selectedTeam.has(m.id));
-  const teamStr = selected.length ? selected.map(m => m.name).join(', ') : 'to be confirmed';
-  const disbursements = document.querySelector('[name="disb"]:checked')?.value === 'at_cost'
-    ? 'Disbursements and out-of-pocket expenses are charged separately at cost.'
-    : 'Standard disbursements are included in our fees unless otherwise agreed.';
+  const disbStr = document.querySelector('[name="disb"]:checked')?.value === 'at_cost'
+    ? 'Charged separately at cost' : 'Included in fee';
 
-  let feeText = '';
+  const fixedTeam = TEAM_MEMBERS.filter(m => selectedTeam.has(m.id));
+  const allTeam = [
+    ...fixedTeam.map(m => ({ name: m.name, role: m.role, rate: m.rate })),
+    ...customTeamMembers.map(m => ({ name: m.name, role: m.role, rate: null })),
+  ];
+
+  let feeStr = '';
   if (feeType === 'hourly') {
-    if (selected.length) {
-      const teamLines = selected.map(m => `${m.name} (${m.role}): €${m.rate}/hr`).join('; ');
-      feeText = `Our fees are charged on a time-spent basis. The team assigned to this matter and their hourly rates are: ${teamLines}.`;
-      const estHours = parseFloat(document.getElementById('eng-est-hours').value);
-      if (estHours) {
-        const total = selected.reduce((s, m) => s + m.rate * estHours, 0);
-        feeText += ` Based on an estimate of ${estHours} hours per team member, the indicative budget is approximately €${total.toLocaleString()} (excl. VAT).`;
+    if (fixedTeam.length) {
+      feeStr = 'Hourly: ' + fixedTeam.map(m => `${m.name} €${m.rate}/hr`).join(', ');
+      const hrs = parseFloat(document.getElementById('eng-est-hours').value);
+      if (hrs) {
+        const total = fixedTeam.reduce((s, m) => s + m.rate * hrs, 0);
+        feeStr += ` — est. ${hrs} hrs/member, indicative budget €${total.toLocaleString()} excl. VAT`;
       }
     } else {
-      feeText = 'Our fees are charged on a time-spent basis at our standard hourly rates.';
+      feeStr = 'Hourly rate (to be confirmed)';
     }
   } else if (feeType === 'fixed') {
     const amt = document.getElementById('eng-fixed-fee').value;
-    feeText = `Our fees for this engagement are fixed at €${amt || '[amount]'} (excl. VAT).`;
+    feeStr = `Fixed fee: €${amt || '[amount]'} excl. VAT`;
   } else if (feeType === 'retainer') {
     const amt = document.getElementById('eng-retainer').value;
     const period = document.getElementById('eng-retainer-period').value;
-    feeText = `Our fees are structured as a monthly retainer of €${amt || '[amount]'} (excl. VAT) for ${period}.`;
+    feeStr = `Monthly retainer: €${amt || '[amount]'} excl. VAT for ${period}`;
+  } else {
+    feeStr = 'To be agreed';
   }
-  feeText += ' ' + disbursements;
 
-  const letter = buildFormalEngagementLetter({ today, clientName: engClient.name, service: engClient.service, desc, timeline, feeText, teamStr, leadLawyer: selected[0]?.name || 'ClearDue Legal' });
-  document.getElementById('eng-preview').innerHTML = letter;
-  window._pendingEngLetter = letter;
+  const teamLines = allTeam.length
+    ? allTeam.map(m => `${m.name} — ${m.role}${m.rate ? ` (€${m.rate}/hr)` : ''}`).join('<br>')
+    : 'To be confirmed';
+
+  const previewHTML = `
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:10px;">Preview of confirmation — ${today}</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);margin-bottom:6px;">Scope of work</div>
+        <div style="font-size:13px;line-height:1.6;">${_esc(scope)}</div>
+        <div style="font-size:12px;color:var(--text-3);margin-top:4px;">Timeline: ${_esc(timeline)}</div>
+      </div>
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);margin-bottom:6px;">Fee arrangement</div>
+        <div style="font-size:13px;">${_esc(feeStr)}</div>
+        <div style="font-size:12px;color:var(--text-3);margin-top:4px;">Disbursements: ${disbStr}</div>
+      </div>
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);margin-bottom:6px;">Team</div>
+        <div style="font-size:13px;line-height:1.7;">${allTeam.length ? allTeam.map(m => `<span><strong>${_esc(m.name)}</strong> <span style="color:var(--text-3)">${_esc(m.role)}${m.rate ? ` · €${m.rate}/hr` : ''}</span></span>`).join('<br>') : '<span style="color:var(--text-3)">To be confirmed</span>'}</div>
+      </div>
+      <div style="font-size:11px;color:var(--text-3);font-style:italic;padding:8px 4px;">
+        All our services are subject to our general terms and conditions (included in email).
+      </div>
+    </div>`;
+
+  document.getElementById('eng-preview').innerHTML = previewHTML;
+
+  // Store structured data — used by sendEngLetter
+  window._pendingEngData = { scope, timeline, feeType, feeStr, disbursements: disbStr, team: allTeam, today };
+  // Keep _pendingEngLetter for client-letter-modal display
+  window._pendingEngLetter = previewHTML;
 }
 
 function buildFormalEngagementLetter({ today, clientName, service, desc, timeline, feeText, teamStr, leadLawyer }) {
@@ -2862,6 +2932,72 @@ async function runSanctionsCheck(subs) {
   }
 }
 
+// ── Demo / seed submissions ───────────────────────────────────────────────────
+function _demoDate(daysAgo) {
+  const d = new Date(); d.setDate(d.getDate() - daysAgo);
+  return { toDate: () => d };
+}
+const _DEMO_SUBS = [
+  // 1. Natural person — standard CDD, pending review
+  {
+    id: 'demo_001', _demo: true,
+    clientName: 'Jan de Vries', clientType: 'natural',
+    email: 'j.devries@example.nl',
+    status: 'pending', risk: 'medium', service: 'Real estate',
+    scopeOfWork: 'Acquisition of residential property at Keizersgracht 312, Amsterdam. Purchase price €485,000. Mortgage financing via ABN AMRO.',
+    scopeConfirmed: true,
+    uboName: '',
+    docs: { passport: true, proof_of_address: true }, totalDocs: 3,
+    createdAt: _demoDate(5),
+    formData: { country: 'Netherlands', nationality: 'Dutch', pep: 'no', dob: '12-04-1981', bsn: true, amount: '€ 485,000' },
+  },
+  // 2. Entity — UBO Roman Abramovich → sanctions hit
+  {
+    id: 'demo_002', _demo: true,
+    clientName: 'Novus Capital B.V.', clientType: 'entity',
+    email: 'admin@novuscapital.nl',
+    status: 'high_risk_review', risk: 'high', service: 'Corporate M&A',
+    scopeOfWork: 'Acquisition of a portfolio of Dutch commercial real estate assets. Target enterprise value approx. €12 million. Client acts as acquiring vehicle.',
+    scopeConfirmed: true,
+    uboName: 'Roman Abramovich',
+    docs: { certificate_of_incorporation: true }, totalDocs: 4,
+    createdAt: _demoDate(2),
+    formData: { country: 'Netherlands', incCountry: 'Netherlands', legalForm: 'B.V.', kvk: '82341567', pep: 'no', ubo1: 'Roman Abramovich — 100% beneficial owner', amount: '€ 12,000,000' },
+  },
+  // 3. Entity — UBO Arkadi Rotenberg → sanctions hit
+  {
+    id: 'demo_003', _demo: true,
+    clientName: 'Baltic Trade Solutions Ltd', clientType: 'entity',
+    email: 'compliance@baltictrade.com',
+    status: 'incomplete', risk: 'high', service: 'Trade finance',
+    scopeOfWork: 'Legal support for import/export trade finance arrangements between EU and non-EU counterparties. Estimated annual transaction volume €3.2 million.',
+    scopeConfirmed: false,
+    uboName: 'Arkadi Rotenberg',
+    docs: {}, totalDocs: 4,
+    createdAt: _demoDate(1),
+    formData: { country: 'Latvia', incCountry: 'Latvia', legalForm: 'Ltd', kvk: '', pep: 'no', ubo1: 'Arkadi Rotenberg — 75% shareholder', amount: '€ 3,200,000' },
+  },
+  // 4. Entity — HIGH RISK not apparent from name (complex offshore structure, no clear UBO)
+  {
+    id: 'demo_004', _demo: true,
+    clientName: 'Sunrise Development B.V.', clientType: 'entity',
+    email: 'info@sunrisedevelopment.nl',
+    status: 'high_risk_review', risk: 'high', service: 'Real estate',
+    scopeOfWork: 'Development and sale of mixed-use property in Amsterdam-Noord. Financing structure involves a Cypriot holding company and a BVI intermediate vehicle. Initial capital injection of €8.5 million in cash.',
+    scopeConfirmed: false,
+    uboName: '',
+    docs: { certificate_of_incorporation: true }, totalDocs: 5,
+    createdAt: _demoDate(3),
+    formData: { country: 'Netherlands', incCountry: 'Netherlands', legalForm: 'B.V.', kvk: '77654321', pep: 'no', ubo1: 'Ownership structure via Sunrise Holdings Ltd (Cyprus) — UBO not yet identified', amount: '€ 8,500,000' },
+  },
+];
+
+// Pre-populate sanctions cache for demo entries (bypass API for known hits)
+_sanctionsCache['demo_002'] = { hits: [{ name: 'Roman Abramovich', matchedEntry: 'roman arkadyevich abramovich', score: 1 }] };
+_sanctionsCache['demo_003'] = { hits: [{ name: 'Arkadi Rotenberg',  matchedEntry: 'arkadi rotenberg',          score: 1 }] };
+_sanctionsCache['demo_001'] = { hits: [] };
+_sanctionsCache['demo_004'] = { hits: [] };
+
 function loadDashboard() {
   if (!db) return;
   if (_unsubDash) _unsubDash();
@@ -2870,12 +3006,14 @@ function loadDashboard() {
     .onSnapshot(async snap => {
       const subs = [];
       snap.forEach(doc => subs.push({ id: doc.id, ...doc.data() }));
-      _dashSubs = subs; // cache for risk assessment lookups
+      // Merge demo subs (prepend, so they always appear)
+      const all = [..._DEMO_SUBS, ...subs];
+      _dashSubs = all; // cache for risk assessment lookups
       // Render immediately (may not have sanctions data yet)
-      renderDashboard(subs);
-      // Run sanctions check in background, then re-render
+      renderDashboard(all);
+      // Run sanctions check for real subs only
       await runSanctionsCheck(subs);
-      renderDashboard(subs); // re-render with sanctions data
+      renderDashboard(all); // re-render with sanctions data
     }, err => console.error('Firestore:', err));
 }
 
@@ -3169,12 +3307,26 @@ async function sendSelectedQuestions() {
 }
 
 async function _approveFile(id) {
+  if (id.startsWith('demo_')) { _toast('ℹ Demo file — approval not persisted'); return; }
   if (!db) return;
   await db.collection('submissions').doc(id).update({ status: 'approved', updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
   _toast('✓ File approved');
 }
 
 async function _viewDocs(id) {
+  if (id.startsWith('demo_')) {
+    const sub = _DEMO_SUBS.find(s => s.id === id);
+    const modal   = document.getElementById('docs-modal');
+    const bodyEl  = document.getElementById('docs-modal-body');
+    const titleEl = document.getElementById('docs-modal-title');
+    if (titleEl) titleEl.textContent = (sub?.clientName || 'Demo') + ' — Documents';
+    const uploaded = Object.keys(sub?.docs || {});
+    bodyEl.innerHTML = uploaded.length
+      ? uploaded.map(d => `<div style="padding:12px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;font-size:13px;color:var(--text-2);">📄 ${_esc(d.replace(/_/g,' '))} <span style="font-size:11px;color:var(--text-3);">(demo — no file)</span></div>`).join('')
+      : `<div style="text-align:center;padding:40px;color:var(--text-3);font-size:13px;">No documents uploaded for this demo file.</div>`;
+    modal.classList.add('active');
+    return;
+  }
   if (!db) return;
   const modal   = document.getElementById('docs-modal');
   const bodyEl  = document.getElementById('docs-modal-body');
@@ -3341,13 +3493,17 @@ let _currentLetterId = null;
 const _origOpenEngModal = window.openEngModal;
 window.openEngModal = function(name, email, service, submissionId) {
   engClient = { name, email, service, submissionId: submissionId || _currentSubmissionId || null };
-  engStep = 0; selectedTeam = new Set(); feeType = '';
+  engStep = 0; selectedTeam = new Set(); feeType = ''; customTeamMembers = [];
   document.getElementById('eng-recipient-email').value = email || '';
   document.getElementById('eng-work-desc').value = 'Legal advice and representation in connection with ' + service.toLowerCase() + '.';
   document.getElementById('eng-timeline').value = 'to be agreed';
   document.getElementById('eng-est-hours').value = '';
   document.getElementById('eng-fixed-fee').value = '';
   document.getElementById('eng-retainer').value = '';
+  document.getElementById('eng-custom-tm-name').value = '';
+  document.getElementById('eng-custom-tm-role').value = '';
+  const ctl = document.getElementById('custom-team-list');
+  if (ctl) ctl.innerHTML = '';
   document.querySelectorAll('[name="fee_type"]').forEach(r => r.closest('.radio-option').classList.remove('selected'));
   ['fee-hourly-block','fee-fixed-block','fee-retainer-block'].forEach(id => document.getElementById(id).style.display = 'none');
   renderTeamList();
@@ -3355,33 +3511,30 @@ window.openEngModal = function(name, email, service, submissionId) {
   document.getElementById('eng-modal').classList.add('active');
 };
 
-// Override sendEngLetter — saves to Firestore + sends real email to client
-const _origSendEngLetter = window.sendEngLetter;
+// Override sendEngLetter — saves to Firestore + sends confirmation email to client
 window.sendEngLetter = async function() {
   const recipientEmail = document.getElementById('eng-recipient-email')?.value?.trim() || engClient.email || '';
   if (!recipientEmail || !recipientEmail.includes('@')) {
-    alert('Please enter a valid recipient email address in step 1.');
+    alert('Please enter a valid recipient email address.');
     return;
   }
-  engClient.email = recipientEmail; // keep in sync
+  engClient.email = recipientEmail;
   closeEngModal();
-  document.getElementById('client-letter-content').innerHTML = window._pendingEngLetter || '';
+
+  const engData = window._pendingEngData || {};
 
   // 1. Save to Firestore
   if (db) {
     try {
       const ref = await db.collection('engagement_letters').add({
-        clientName:      engClient.name,
-        email:           engClient.email,
-        service:         engClient.service,
-        submissionId:    engClient.submissionId || null,
-        workDescription: document.getElementById('eng-work-desc').value,
-        feeType,
-        team:            TEAM_MEMBERS.filter(m => selectedTeam.has(m.id)),
-        letterHTML:      window._pendingEngLetter || '',
-        status:          'sent',
-        sentBy:          currentUser?.email || 'unknown',
-        sentAt:          firebase.firestore.FieldValue.serverTimestamp(),
+        clientName:     engClient.name,
+        email:          engClient.email,
+        service:        engClient.service,
+        submissionId:   engClient.submissionId || null,
+        engagementData: engData,
+        status:         'sent',
+        sentBy:         currentUser?.email || 'unknown',
+        sentAt:         firebase.firestore.FieldValue.serverTimestamp(),
       });
       _currentLetterId = ref.id;
       if (engClient.submissionId) {
@@ -3390,41 +3543,34 @@ window.sendEngLetter = async function() {
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
       }
-    } catch(e) { console.error('Save letter error:', e); }
+    } catch(e) { console.error('Save engagement error:', e); }
   }
 
-  // 2. Send real email via backend (include letterId + lawyerEmail for approve/deny links)
+  // 2. Send confirmation email via backend
   try {
     const emailRes = await fetch('/api/send-engagement-letter', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        to:          engClient.email,
-        clientName:  engClient.name,
-        letterHTML:  window._pendingEngLetter || '',
-        letterId:    _currentLetterId || '',
-        lawyerEmail: currentUser?.email || '',
+        to:             engClient.email,
+        clientName:     engClient.name,
+        engagementData: engData,
+        letterId:       _currentLetterId || '',
+        lawyerEmail:    currentUser?.email || '',
       }),
     });
     if (!emailRes.ok) {
       const err = await emailRes.json().catch(() => ({}));
-      _toast('⚠ Letter saved but email failed: ' + (err.error || `server error ${emailRes.status}`), 'red');
+      _toast('⚠ Saved but email failed: ' + (err.error || `error ${emailRes.status}`), 'red');
       return;
     }
   } catch(e) {
     console.error('Email send error:', e);
-    _toast('⚠ Letter saved but email could not be sent — check server logs', 'red');
+    _toast('⚠ Email could not be sent — check server logs', 'red');
     return;
   }
 
-  _toast('✓ Engagement letter sent to ' + engClient.email);
-  setTimeout(() => {
-    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
-    document.getElementById('view-client').classList.add('active');
-    document.querySelector('.nav-tab[onclick*="client"]').classList.add('active');
-    document.getElementById('client-letter-modal').classList.add('active');
-  }, 600);
+  _toast('✓ Engagement confirmation sent to ' + engClient.email);
 };
 
 // ===== Engagement letter approve/deny (from email link) =====
