@@ -2999,6 +2999,7 @@ _sanctionsCache['demo_004'] = { hits: [] };
 
 function loadDashboard() {
   if (_unsubDash) _unsubDash();
+  _checkEmailProvider(); // warn if email provider not configured
   // Always show demo clients immediately — no dependency on Firestore
   _dashSubs = [..._DEMO_SUBS];
   renderDashboard(_dashSubs);
@@ -3552,25 +3553,25 @@ window.sendEngLetter = async function() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        to:             engClient.email,
+        to:             recipientEmail,
         clientName:     engClient.name,
         engagementData: engData,
         letterId:       _currentLetterId || '',
         lawyerEmail:    currentUser?.email || '',
       }),
     });
+    const emailBody = await emailRes.json().catch(() => ({}));
     if (!emailRes.ok) {
-      const err = await emailRes.json().catch(() => ({}));
-      _toast('⚠ Saved but email failed: ' + (err.error || `error ${emailRes.status}`), 'red');
+      _showEmailError('Email failed (' + emailRes.status + '): ' + (emailBody.error || 'Unknown server error'));
       return;
     }
   } catch(e) {
     console.error('Email send error:', e);
-    _toast('⚠ Email could not be sent — check server logs', 'red');
+    _showEmailError('Network error — could not reach server: ' + e.message);
     return;
   }
 
-  _toast('✓ Engagement confirmation sent to ' + engClient.email);
+  _toast('✓ Engagement confirmation sent to ' + recipientEmail);
 };
 
 // ===== Engagement letter approve/deny (from email link) =====
@@ -3654,6 +3655,28 @@ window.countersignLetter = async function() {
   }
   _toast('✓ Engagement letter countersigned and returned to ClearDue Legal', 'green');
 };
+
+// ===== Email error — prominent banner (can't miss it) =====
+function _showEmailError(msg) {
+  // Remove any existing banner
+  document.getElementById('email-err-banner')?.remove();
+  const el = document.createElement('div');
+  el.id = 'email-err-banner';
+  el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#b91c1c;color:white;padding:18px 24px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+  el.innerHTML = `<span>⚠ Email not sent — ${msg.replace(/</g,'&lt;')}</span><button onclick="document.getElementById('email-err-banner').remove()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">Dismiss ✕</button>`;
+  document.body.prepend(el);
+}
+
+// Check email provider status and show banner if not configured
+async function _checkEmailProvider() {
+  try {
+    const r = await fetch('/api/email-status');
+    const d = await r.json();
+    if (!d.configured) {
+      _showEmailError('No email provider configured on the server. Add RESEND_API_KEY to Railway Variables.');
+    }
+  } catch(e) { /* ignore — server may not be running locally */ }
+}
 
 // ===== Utilities =====
 function _toast(msg, color) {
