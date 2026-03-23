@@ -413,7 +413,7 @@ function _inviteEmailHTMLBody(to, invitedBy, appUrl, scopeBlock) {
         </p>
         ${scopeBlock}
         <div style="text-align:center;margin:0 0 28px;">
-          <a href="${appUrl}"
+          <a href="${appUrl}?view=client"
             style="display:inline-block;background:#1a2744;color:white;text-decoration:none;
                    padding:14px 36px;border-radius:10px;font-size:14px;font-weight:600;letter-spacing:-0.2px;">
             Complete my KYC file &rarr;
@@ -421,7 +421,7 @@ function _inviteEmailHTMLBody(to, invitedBy, appUrl, scopeBlock) {
         </div>
         <p style="font-size:12px;color:#8a94a6;line-height:1.6;margin:0 0 20px;">
           If the button doesn&rsquo;t work, copy and paste this link into your browser:<br>
-          <a href="${appUrl}" style="color:#1a2744;">${appUrl}</a>
+          <a href="${appUrl}?view=client" style="color:#1a2744;">${appUrl}?view=client</a>
         </p>
         <p style="font-size:11px;color:#b0b8c6;border-top:1px solid #e2e5ec;padding-top:16px;margin:0;">
           ClearDue Legal B.V. &middot; Herengracht 400, 1017 BX Amsterdam &middot; info@cleardue.legal<br>

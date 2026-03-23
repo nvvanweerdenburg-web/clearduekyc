@@ -2806,6 +2806,18 @@ async function initFirebase() {
           const ce = document.getElementById('f-contact-email');
           if (ce && !ce.value) ce.value = user.email;
         }, 150);
+        // If arriving from a KYC invite link, switch to client portal
+        (function() {
+          const _p = new URLSearchParams(window.location.search);
+          if (_p.get('view') === 'client') {
+            document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+            document.getElementById('view-client').classList.add('active');
+            const clientTab = document.querySelector('.nav-tab[onclick*="switchView(\'client\')"]');
+            if (clientTab) clientTab.classList.add('active');
+            window.history.replaceState({}, '', window.location.pathname);
+          }
+        })();
         // Check if this user has a pending invite with a scope of work to confirm
         setTimeout(() => checkForPendingInvite(user.email), 400);
         // Handle engagement letter approve/deny from email link
